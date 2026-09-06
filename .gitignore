@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+
+# Données PocketBase — ne JAMAIS committer :
+# contient les réponses des participants.
+pb_data/
+*.db
+*.db-shm
+*.db-wal
+backups/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Binaires
+pocketbase
+*.zip

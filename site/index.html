@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Étonnamment d'accord</title>
+  <meta name="description" content="Étonnamment d'accord" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+
+  <script>
+    /* set synchronously so the hero's final state never flashes before the intro */
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('intro-pending');
+      }
+    } catch (e) {}
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Beth+Ellen&family=Inter:wght@400;500;600&family=Londrina+Solid:wght@300;900&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:        #FFFFFF;
+      --ink:       #141414;
+      --ink-muted: #6B6B6B;
+      --line:      #E6E6E6;
+      --accent:    #EE5340;   /* coral, sampled from the "d'accord" lettering */
+      --accent-hi: #D8412F;
+      --error:     #B23A2B;
+      --radius:    10px;
+      --maxw:      920px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;          /* the hero intro briefly scales the logo up */
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ============ Scroll-reveal header ============ */
+    .site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 10px clamp(16px, 4vw, 40px);
+      background: rgba(255, 255, 255, 0.9);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      /* hidden until the user scrolls past the hero logo (JS toggles .is-visible) */
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+    .site-header.is-visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .header-logo { display: inline-flex; flex: 0 0 auto; }
+    .header-logo img { display: block; height: 44px; width: auto; }
+
+    .header-nav { display: flex; gap: clamp(14px, 2.4vw, 30px); }
+    .header-nav a {
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      color: var(--ink);
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .header-nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+    .header-contact {
+      flex: 0 0 auto;
+      position: relative;
+      align-self: stretch;          /* fill header height so top:0 references the header top */
+      display: flex;
+      align-items: center;
+      padding-right: 118px;          /* reserve room for the hanging phone */
+      text-decoration: none;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color 0.15s ease;
+    }
+    .header-contact:hover { color: var(--accent); }
+    .header-contact img {
+      position: absolute;
+      top: -10px;                   /* cancel header padding so the cord touches the screen's top edge */
+      right: 0;
+      height: 136px;                /* twice as big again */
+      width: auto;
+      transform-origin: 50% 0;      /* swings from the cord */
+      animation: sway 4s ease-in-out infinite;
+      filter: drop-shadow(0 5px 8px rgba(0,0,0,0.16));
+    }
+    .header-contact:hover img { animation-duration: 1.4s; }
+    .site-header a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+    @keyframes sway {
+      0%, 100% { transform: rotate(-3.5deg); }
+      50%      { transform: rotate(3.5deg); }
+    }
+
+    /* ============ Hero ============ */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 96px 24px 72px;
+      overflow: hidden;            /* contain the oversized intro logo */
+    }
+
+    .hero-center {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 30px;
+      max-width: 860px;
+    }
+    .logo {
+      width: clamp(260px, 48vw, 600px);
+      height: auto;
+      transform-origin: center center;
+      will-change: transform;
+    }
+    .hero-text {
+      font-family: "Londrina Solid", system-ui, sans-serif;
+      font-weight: 300;                       /* Londrina Light */
+      font-size: clamp(18px, 2.5vw, 25px);
+      line-height: 1.5;
+      color: var(--ink);
+      max-width: 56ch;
+    }
+    /* hide logo + text before the JS intro runs (motion users only) — avoids a flash */
+    html.intro-pending .hero .logo,
+    html.intro-pending .hero .hero-text { opacity: 0; }
+
+    /* intro veil: covers everything but the logo during the opening animation */
+    .intro-veil {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+    html.intro-pending .intro-veil { opacity: 1; }   /* cover instantly from first paint */
+    .intro-veil.show { opacity: 1; }
+    .hero-center.lift { z-index: 1000; }   /* raise the logo above the veil */
+
+    .hero-text p { margin: 0 0 1em; }
+    .hero-text p:last-child { margin-bottom: 0; }
+
+    /* "ÉTONNAMMENT" — Londrina Black, ~4 steps up the scale */
+    .brand-word {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: 2.1em;
+      line-height: 0.9;
+      letter-spacing: 0.005em;
+    }
+    /* "d'accord" and "Et toi ?" — Beth Ellen script */
+    .script {
+      font-family: "Beth Ellen", cursive;
+      font-weight: 400;
+    }
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ============ Placeholder sections (nav targets — fill later) ============ */
+    .section-placeholder {
+      padding: 96px 0;
+      border-top: 1px solid var(--line);
+    }
+    .section-placeholder h2 {
+      font-family: "Inter", sans-serif;
+      font-weight: 600;
+      font-size: clamp(24px, 4vw, 34px);
+      letter-spacing: -0.01em;
+      margin: 0 0 8px;
+    }
+    .placeholder-note { color: var(--ink-muted); margin: 0; }
+
+    /* ============ Format section (zig-zag features) ============ */
+    .format { padding: 100px 0 40px; border-top: 1px solid var(--line); }
+    .format-inner {
+      width: 100%;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(64px, 9vw, 120px);
+    }
+    .format-row {
+      display: flex;
+      align-items: center;
+      gap: clamp(28px, 5vw, 72px);
+    }
+    .format-row.right { flex-direction: row-reverse; }
+    .format-media { flex: 0 0 auto; width: clamp(200px, 32%, 340px); }
+    .format-media img { display: block; width: 100%; height: auto; }
+    .format-body { flex: 1 1 auto; max-width: 46ch; }
+    .format-row.right .format-body { text-align: right; margin-left: auto; }
+    .format-title {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      line-height: 1;
+      margin: 0 0 16px;
+      color: var(--c, var(--ink));
+    }
+    .format-text {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 300;
+      font-size: clamp(16px, 1.9vw, 20px);
+      line-height: 1.55;
+      margin: 0;
+      color: var(--c, var(--ink));
+    }
+    @media (max-width: 760px) {
+      .format-row, .format-row.right { flex-direction: column; align-items: flex-start; gap: 20px; }
+      .format-media { width: min(72%, 320px); }
+      .format-body, .format-row.right .format-body { text-align: left; margin-left: 0; max-width: none; }
+    }
+
+    /* ============ Organisations participantes (framed cluster) ============ */
+    .section-org { padding: 100px 0 112px; border-top: 1px solid var(--line); }
+    .org-head { text-align: center; max-width: 720px; margin: 0 auto; padding: 0 24px; }
+    .org-head h2 {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: clamp(24px, 4vw, 40px);
+      letter-spacing: 0.01em;
+      line-height: 1;
+      margin: 0;
+    }
+    .org-cluster {
+      position: relative;
+      width: 100%;
+      max-width: 1060px;
+      margin: 40px auto 0;
+      aspect-ratio: 100 / 58;
+    }
+    .org-item {
+      position: absolute;
+    }
+    .org-item.big   { width: 21%; }
+    .org-item.small { width: 14.5%; }
+    .org-item img {
+      display: block;
+      width: 100%;
+      height: auto;
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.20));
+      transform: rotate(var(--r, 0deg));
+      transition: transform 0.25s ease;
+    }
+    .org-item:hover { z-index: 40 !important; }
+    .org-item.is-open { z-index: 40 !important; }
+    .org-item:hover img,
+    .org-item.is-open img { transform: rotate(var(--r, 0deg)) scale(1.06); }
+
+    /* hover/tap card — floats beside the frame, sized for genuinely readable text */
+    .org-caption {
+      position: absolute;
+      top: calc(100% + 12px);
+      left: 0;
+      min-width: 210px;
+      max-width: min(270px, 80vw);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.20);
+      padding: 14px 16px;
+      opacity: 0;
+      transform: translateY(-6px) translateX(var(--dx, 0px));
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 50;
+    }
+    .org-item.cap-r .org-caption { left: auto; right: 0; }
+    .org-caption::before {
+      content: ""; position: absolute; top: -7px; left: 20px;
+      border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid #fff;
+    }
+    .org-item.cap-r .org-caption::before { left: auto; right: 20px; }
+    .org-item:hover .org-caption,
+    .org-item.is-open .org-caption { opacity: 1; transform: translateY(0) translateX(var(--dx, 0px)); pointer-events: auto; }
+
+    .org-caption .org-name {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      margin: 0 0 5px;
+    }
+    .org-caption p {
+      margin: 0;
+      font-family: "Inter", sans-serif;
+      font-size: 13.5px;
+      line-height: 1.5;
+      text-align: left;
+      color: var(--ink);
+    }
+    .org-caption .org-tag { color: var(--accent); font-weight: 600; }
+    .org-caption .org-link {
+      display: inline-block;
+      margin-top: 9px;
+      font-family: "Inter", sans-serif;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .org-caption .org-link:hover,
+    .org-caption .org-link:focus-visible { text-decoration: underline; }
+
+    /* when a caption has data-href, the whole panel becomes a clickable link */
+    .org-caption[data-href] { cursor: pointer; }
+    .org-caption[data-href]:hover,
+    .org-caption[data-href]:focus-visible { background: #f7f6f1; }
+    .org-caption[data-href]:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+
+    @media (max-width: 820px) {
+      .org-cluster {
+        position: static;
+        aspect-ratio: auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 18px 16px;
+      }
+      .org-item { position: relative !important; left: auto !important; top: auto !important; }
+      .org-item.big { width: 30%; }
+      .org-item.small { width: 22%; }
+      /* on mobile the caption expands inline below the frame instead of floating —
+         this can never overflow the viewport, since it's just part of normal flow */
+      .org-caption, .org-item.cap-r .org-caption {
+        position: static;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        margin-top: 10px;
+        opacity: 1;
+        transform: none;
+        pointer-events: none;
+        display: none;
+      }
+      .org-caption::before, .org-item.cap-r .org-caption::before { display: none; }
+      .org-item:hover .org-caption,
+      .org-item.is-open .org-caption { display: block; transform: none; pointer-events: auto; }
+    }
+    @media (max-width: 520px) {
+      .org-item.big { width: 44%; }
+      .org-item.small { width: 40%; }
+    }
+
+    /* ============ Programmation (scrolling timeline) ============ */
+    .section-prog { padding: 100px 0 48px; border-top: 1px solid var(--line); }
+    .tl-hint { text-align: center; color: var(--ink-muted); font-size: 13px; letter-spacing: 0.04em; margin: 10px 0 0; }
+    .tl-scroll {
+      width: 100%;
+      margin-top: 30px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 8px 0 460px;                 /* room below for the taller drop-down cards */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    .tl-stage { position: relative; display: inline-block; --tlh: 150px; }
+    .tl-img { display: block; height: var(--tlh); width: auto; user-select: none; -webkit-user-drag: none; }
+
+    .tl-event { position: absolute; left: var(--l); top: var(--top); width: var(--w); height: var(--h); }
+    .tl-event:hover, .tl-event.is-open { z-index: 20; }
+    .tl-hit {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: max(30px, 100%); height: max(34px, 100%);
+      background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 3px;
+    }
+    .tl-event:hover .tl-hit, .tl-event.is-open .tl-hit { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .tl-dot {
+      position: absolute; left: 50%; top: -8px; transform: translateX(-50%);
+      width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(238,83,64,.5); animation: tlpulse 2.2s infinite; pointer-events: none;
+    }
+    .tl-event:hover .tl-dot, .tl-event.is-open .tl-dot { animation: none; }
+    @keyframes tlpulse {
+      0%   { box-shadow: 0 0 0 0 rgba(238,83,64,.45); }
+      70%  { box-shadow: 0 0 0 11px rgba(238,83,64,0); }
+      100% { box-shadow: 0 0 0 0 rgba(238,83,64,0); }
+    }
+    .tl-card {
+      position: absolute; top: calc(100% + 14px); left: -12px;
+      width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 16px 34px rgba(0,0,0,.18); overflow: hidden; z-index: 5;
+      opacity: 0; transform: translateY(-6px); pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .tl-card::before {
+      content: ""; position: absolute; top: -7px; left: 22px;
+      border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid #fff;
+    }
+    .tl-event:hover .tl-card, .tl-event.is-open .tl-card { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .tl-date {
+      background: var(--accent); color: #fff; font-family: "Londrina Solid", sans-serif; font-weight: 900;
+      text-transform: uppercase; font-size: 16px; letter-spacing: .03em; padding: 7px 12px;
+    }
+    .tl-row img { width: 100%; height: 128px; object-fit: cover; display: block; }
+    .tl-text { padding: 12px 14px 14px; }
+    .tl-text p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+    .tl-text p:last-of-type { margin-bottom: 0; }
+    .tl-text strong { font-weight: 700; }
+    .tl-link {
+      display: inline-block;
+      margin-top: 2px;
+      font-family: "Inter", sans-serif;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .tl-link:hover, .tl-link:focus-visible { text-decoration: underline; }
+
+    @media (max-width: 820px) {
+      .tl-stage { --tlh: 120px; }
+      .tl-card { width: 250px; }
+      .tl-row img { height: 108px; }
+      .tl-scroll { padding-bottom: 420px; }
+    }
+
+    /* keep anchored sections from hiding behind the fixed header */
+    .section-placeholder, .format, .section-prog, .section-org, .contact { scroll-margin-top: 76px; }
+
+    /* ============ Contact ============ */
+    .contact { border-top: 1px solid var(--line); }
+    .contact-inner {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: clamp(72px, 9vw, 104px) 24px;
+      display: grid;
+      grid-template-columns: 0.82fr 1.18fr;
+      gap: clamp(28px, 6vw, 76px);
+      align-items: start;
+    }
+    .contact-aside { position: relative; padding-top: 8px; }
+    .contact-hook {
+      font-family: "Beth Ellen", cursive;
+      color: var(--accent);
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1;
+      margin: 0 0 6px;
+    }
+    .contact-title {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: clamp(34px, 6.2vw, 58px);
+      line-height: 0.92;
+      letter-spacing: 0.01em;
+      margin: 0 0 18px;
+    }
+    .contact-lede {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 300;
+      font-size: clamp(17px, 2vw, 21px);
+      line-height: 1.5;
+      color: var(--ink);
+      max-width: 30ch;
+      margin: 0;
+    }
+    .phone-hang { margin-top: 34px; text-align: center; }
+    .phone-hang img {
+      height: clamp(120px, 20vw, 188px);
+      width: auto;
+      transform-origin: 50% 0;              /* swings from the cord */
+      animation: sway 4s ease-in-out infinite;
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,0.14));
+    }
+
+    .contact-form { display: grid; gap: 18px; }
+    .field { display: grid; gap: 7px; }
+    .field label {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 15px;
+      color: var(--ink);
+    }
+    .field label .req { color: var(--accent); }
+    input, textarea {
+      font-family: "Inter", sans-serif;
+      font-size: 16px;
+      color: var(--ink);
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 13px 15px;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    textarea { resize: vertical; min-height: 140px; }
+    input::placeholder, textarea::placeholder { color: #B4B4AE; }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+
+    .submit {
+      justify-self: start;
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 20px;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 34px;
+      cursor: pointer;
+      transition: background .15s ease, transform .05s ease;
+    }
+    .submit:hover { background: var(--accent-hi); }
+    .submit:active { transform: translateY(1px); }
+    .submit:disabled { opacity: .55; cursor: default; }
+    .submit:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .status { margin: 2px 0 0; font-size: 15px; min-height: 1.4em; font-weight: 500; }
+    .status[data-state="ok"]    { color: var(--accent); }
+    .status[data-state="error"] { color: var(--error); }
+
+    @media (max-width: 760px) {
+      .contact-inner { grid-template-columns: 1fr; gap: 30px; }
+      .contact-aside { text-align: center; }
+      .contact-lede { margin: 0 auto; }
+      .phone-hang { margin-top: 22px; }
+      .submit { justify-self: stretch; width: 100%; text-align: center; }
+    }
+
+    /* ============ Footer ============ */
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 26px 0;
+      font-size: 14px;
+      color: var(--ink-muted);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ============ Small screens ============ */
+    @media (max-width: 720px) {
+      .header-nav { display: none; }        /* keep the header minimal on phones */
+      .header-logo img { height: 36px; }
+      .header-contact span { display: none; } /* phone icon alone */
+    }
+    @media (max-width: 560px) {
+      .wrap { padding: 0 20px; }
+      .hero { padding: 92px 20px 64px; }
+    }
+
+    /* ============ Reduced motion ============ */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .logo, .hero-text, .header-contact img, .phone-hang img { animation: none !important; }
+      .logo, .hero-text { opacity: 1 !important; transform: none !important; }
+      * { transition: none !important; }
+    }
+  </style>
+
+  <noscript>
+    <!-- Without JS the scroll-reveal can't run, so show the header outright -->
+    <style>.site-header { transform: none; opacity: 1; pointer-events: auto; }</style>
+  </noscript>
+</head>
+<body id="top">
+
+  <!-- White cover shown only during the hero intro so nothing but the logo is visible -->
+  <div class="intro-veil" aria-hidden="true"></div>
+
+  <!-- Minimalist header — hidden until the user scrolls past the hero logo -->
+  <header class="site-header" id="site-header">
+    <a class="header-logo" href="#top" aria-label="Étonnamment d'accord — accueil">
+      <img src="assets/Header_logo.png" alt="Étonnamment d'accord" />
+    </a>
+    <nav class="header-nav" aria-label="Navigation principale">
+      <a href="#format">Format</a>
+      <a href="#programmation">Programmation</a>
+      <a href="#organisations">Organisations participantes</a>
+    </nav>
+    <a class="header-contact" href="#contact">
+      <img src="assets/Phone.png" alt="" />
+      <span>Nous contacter</span>
+    </a>
+  </header>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="hero-center">
+        <img class="logo" src="assets/Main_Logo.png" alt="Étonnamment d'accord" />
+        <div class="hero-text">
+          <p>Voter dans le vide. Écouter des débats qui ne changent rien ni personne. Sommes-nous condamnés à cette seule manière désolante de contribuer à la politique&nbsp;?</p>
+          <p><span class="brand-word">Étonnamment</span> <span class="script">d'accord</span> est un espace de création et de contribution de mesures politiques. Pour nourrir le débat avec des solutions concrètes venant de tous les Français. Pour réimaginer en mieux la démocratie française. Pour penser ensemble depuis nos différences et avec le respect que l'on se doit.</p>
+          <p>Nous ne voulons qu'une chose&nbsp;: contribuer au bien commun. <span class="script">Et toi&nbsp;?</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NAV TARGET SECTIONS (placeholders — fill later) ============ -->
+    <!-- ============ FORMAT ============ -->
+    <section class="format" id="format">
+      <div class="format-inner">
+
+        <div class="format-row left" style="--c:#9a3e2c">
+          <div class="format-media">
+            <img src="assets/DES_DE_BATS.jpg" alt="Deux personnages aux têtes en forme de bulles de bande dessinée, assis face à face" />
+          </div>
+          <div class="format-body">
+            <h2 class="format-title">Des débats</h2>
+            <p class="format-text" data-copy="format-debats">Organiser 5 à 10 débats citoyens participatifs sur 5 à 10 sujets-clé pour l'avenir du pays afin de croiser différentes positions, de se mettre d'accord sur des solutions (propositions de politique publique) et de les hiérarchiser.</p>
+          </div>
+        </div>
+
+        <div class="format-row right" style="--c:#419abf">
+          <div class="format-media">
+            <img src="assets/DES_INTERVIEWS_D_EXPERTS.jpg" alt="Un homme de dos face à un mur de nuages, tenant de longues notes manuscrites" />
+          </div>
+          <div class="format-body">
+            <h2 class="format-title">Des interviews d'experts</h2>
+            <p class="format-text" data-copy="format-interviews">Conduire 5 à 10 entretiens-fleuves avec des personnalités-clé, afin de nourrir les connaissances brutes et les perspectives de chacun.</p>
+          </div>
+        </div>
+
+        <div class="format-row left" style="--c:#d99f6b">
+          <div class="format-media">
+            <img src="assets/DES_VOTES.jpg" alt="Une main tend des billes colorées qui semblent se déverser dans l'écran d'un téléphone" />
+          </div>
+          <div class="format-body">
+            <h2 class="format-title">Des votes</h2>
+            <p class="format-text" data-copy="format-votes">Créer un espace de contributions en ligne pour que les citoyens puissent proposer des solutions et évaluer celles des autres.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ PROGRAMMATION ============ -->
+    <section class="section-prog" id="programmation">
+      <div class="org-head">
+        <h2>Programmation</h2>
+        <p class="tl-hint">↔ Faites glisser pour parcourir la manifestation</p>
+      </div>
+
+      <div class="tl-scroll">
+        <div class="tl-stage">
+          <img class="tl-img" src="assets/Timeline.png" alt="Une longue manifestation illustrée : de nombreuses personnes marchent de la gauche vers la droite en brandissant des pancartes vierges" />
+
+          <div class="tl-event" style="--l:0.39%; --top:4.1%; --w:1.35%; --h:21%">
+            <button class="tl-hit" type="button" aria-label="Événement du 10 septembre 2026"></button>
+            <span class="tl-dot" aria-hidden="true"></span>
+            <div class="tl-card" role="dialog" aria-label="10 septembre 2026">
+              <div class="tl-date">10 septembre 2026</div>
+              <div class="tl-row">
+                <img src="assets/tl_zoom1.jpg" alt="" />
+                <div class="tl-text" data-copy="programmation-10-sept">
+                  <p><strong>Réparer la démocratie, chacun dans son coin&nbsp;?</strong></p>
+                  <p>Réunissons-nous au lancement de Étonnamment d'accord, un programme citoyen pour préparer les présidentielles 2027.</p>
+                  <a class="tl-link" href="https://www.eventbrite.fr/e/reparer-la-democratie-chacun-dans-son-coin-tickets-1998431041040" target="_blank" rel="noopener">Réserver sur Eventbrite ↗</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-event" style="--l:2.20%; --top:4.9%; --w:1.56%; --h:20%">
+            <button class="tl-hit" type="button" aria-label="Événement du 17 septembre 2026"></button>
+            <span class="tl-dot" aria-hidden="true"></span>
+            <div class="tl-card" role="dialog" aria-label="17 septembre 2026">
+              <div class="tl-date">17 septembre 2026</div>
+              <div class="tl-row">
+                <img src="assets/tl_zoom2.jpg" alt="" />
+                <div class="tl-text" data-copy="programmation-17-sept">
+                  <p><strong>Nuit des Controverses</strong></p>
+                  <p>Étonnamment d'accord aura le plaisir d'organiser un format « Façons de voir » de la Maison de la Conversation à l'occasion de la Nuit des Controverses.</p>
+                  <a class="tl-link" href="https://www.gaite-lyrique.net/agenda/2026/2eme-nuit-des-controverses/" target="_blank" rel="noopener">Voir l'événement ↗</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ORGANISATIONS PARTICIPANTES ============ -->
+    <section class="section-org" id="organisations">
+      <div class="org-head">
+        <h2>Organisations participantes</h2>
+      </div>
+
+      <div class="org-cluster">
+        <!-- 3 bigger frames — logos -->
+        <div class="org-item big"   style="left:3%;  top:4%;  z-index:3; --r:-5deg; --ct:20.3%; --cr:24.8%; --cb:22.3%; --cl:25.4%">
+          <img src="assets/org/org1.png" alt="Maison de la conversation" />
+          <div class="org-caption">
+            <p data-copy="org-maison-de-la-conversation">La maison de la Conversation est un lieu de vie situé dans le 18e arrondissement de Paris qui valorise la conversation grâce à sa programmation.</p>
+          </div>
+        </div>
+        <div class="org-item big"   style="left:39%; top:0%;  z-index:4; --r:3deg; --ct:24.6%; --cr:27.7%; --cb:23.1%; --cl:27.6%">
+          <img src="assets/org/org2.png" alt="n" />
+          <div class="org-caption">
+            <p data-copy="org-n">L'asso qui construit un programme citoyen avec méthode. Des décryptages utiles et des débats sans prise de tête.</p>
+          </div>
+        </div>
+        <div class="org-item big cap-r" style="left:70%; top:6%;  z-index:3; --r:6deg; --ct:15.3%; --cr:17.0%; --cb:15.5%; --cl:16.8%">
+          <img src="assets/org/org3.png" alt="Debatology" />
+          <div class="org-caption">
+            <p data-copy="org-debatology">Dépolariser sans dépolitiser. Et si le débat n'était pas un combat à gagner mais un jeu à repenser&nbsp;? Récits, science et tactiques pour sortir de la polarisation et <span class="org-tag">#MieuxDebattre</span>.</p>
+          </div>
+        </div>
+
+        <!-- 5 smaller frames — people -->
+        <div class="org-item small" style="left:16%; top:47%; z-index:5; --r:4deg; --ct:14.9%; --cr:21.4%; --cb:15.1%; --cl:16.7%">
+          <img src="assets/org/person1.png" alt="Peter Barrett" />
+          <div class="org-caption" data-copy="org-person-1">
+            <p class="org-name">Peter Barrett</p>
+            <a class="org-link" href="https://www.linkedin.com/in/phsbarrett/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
+          </div>
+        </div>
+        <div class="org-item small" style="left:2%;  top:56%; z-index:4; --r:-8deg; --ct:15.0%; --cr:21.3%; --cb:17.0%; --cl:19.6%; --crad:50%">
+          <img src="assets/org/person2.png" alt="Paul Bonifacio" />
+          <div class="org-caption" data-copy="org-person-2">
+            <p class="org-name">Paul Bonifacio</p>
+            <a class="org-link" href="https://www.linkedin.com/in/paul-bonifacio/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
+          </div>
+        </div>
+        <div class="org-item small" style="left:33%; top:41%; z-index:6; --r:-4deg; --ct:20.3%; --cr:24.8%; --cb:22.3%; --cl:25.4%">
+          <img src="assets/org/person3.png" alt="Xavier Cazard" />
+          <div class="org-caption" data-copy="org-person-3">
+            <p class="org-name">Xavier Cazard</p>
+            <a class="org-link" href="https://www.linkedin.com/in/xaviercazard/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
+          </div>
+        </div>
+        <div class="org-item small cap-r" style="left:52%; top:45%; z-index:5; --r:5deg; --ct:24.6%; --cr:27.7%; --cb:23.1%; --cl:27.6%">
+          <img src="assets/org/person5.png" alt="Grâce Iba" />
+          <div class="org-caption" data-copy="org-person-4">
+            <p class="org-name">Grâce Iba</p>
+            <a class="org-link" href="https://www.linkedin.com/in/gr%C3%A2ce-iba/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
+          </div>
+        </div>
+        <div class="org-item small cap-r" style="left:77%; top:52%; z-index:2; --r:-3deg; --ct:15.3%; --cr:17.0%; --cb:15.5%; --cl:16.8%">
+          <img src="assets/org/person6.png" alt="Mathieu Groffe" />
+          <div class="org-caption" data-copy="org-person-5">
+            <p class="org-name">Mathieu Groffe</p>
+            <a class="org-link" href="https://www.linkedin.com/in/mathieu-groffe-456241153/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="contact">
+      <div class="contact-inner">
+
+        <div class="contact-aside">
+          <p class="contact-hook">Et toi&nbsp;?</p>
+          <h2 class="contact-title">Écrivez-<br>nous</h2>
+          <p class="contact-lede">Une question, une idée, une envie de contribuer au bien commun&nbsp;? On vous répond vite.</p>
+          <div class="phone-hang">
+            <img src="assets/Phone.png" alt="" />
+          </div>
+        </div>
+
+        <!-- Submission handled in JS via the Make webhook (no <form action>). -->
+        <form class="contact-form" id="contact-form" novalidate>
+          <div class="field">
+            <label for="name">Nom <span class="req">*</span></label>
+            <input type="text" id="name" name="name" autocomplete="name" placeholder="Votre nom" required />
+          </div>
+          <div class="field">
+            <label for="email">Email <span class="req">*</span></label>
+            <input type="email" id="email" name="email" autocomplete="email" placeholder="vous@exemple.fr" required />
+          </div>
+          <div class="field">
+            <label for="message">Message <span class="req">*</span></label>
+            <textarea id="message" name="message" placeholder="Dites-nous tout…" required></textarea>
+          </div>
+          <button type="submit" class="submit" id="submit-btn">Envoyer</button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </form>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>Étonnamment d'accord</span>
+      <span>© <span id="year"></span></span>
+    </div>
+  </footer>
+
+  <script>
+    /* =====================================================================
+       MAKE WEBHOOK — paste your Custom Webhook URL between the quotes below.
+       (Make → new scenario → "Webhooks" → "Custom webhook" → copy the
+        address here, then "Determine data structure" and submit once so
+        Make learns the fields: name, email, message.)
+       ===================================================================== */
+    const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/t7lfylt7lt9e2218zule447umaprunz0";
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    /* Reveal the header once the hero logo has scrolled out of view */
+    (function () {
+      const header = document.getElementById("site-header");
+      const heroLogo = document.querySelector(".hero .logo");
+      if (!header) return;
+
+      if (heroLogo && "IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) =>
+              header.classList.toggle("is-visible", !e.isIntersecting)
+            );
+          },
+          { threshold: 0 }
+        );
+        io.observe(heroLogo);
+      } else {
+        // Fallback: reveal after a bit of scrolling
+        const onScroll = () =>
+          header.classList.toggle("is-visible", window.scrollY > 240);
+        window.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+      }
+    })();
+
+    /* Hero intro: logo starts vertically centred on screen (alone, 2x),
+       then slides up to its resting spot while the text reveals. */
+    (function () {
+      const hero = document.querySelector(".hero");
+      const html = document.documentElement;
+      if (!hero) return;
+      const logo = hero.querySelector(".logo");
+      const text = hero.querySelector(".hero-text");
+      const veil = document.querySelector(".intro-veil");
+      const hc   = hero.querySelector(".hero-center");
+      const reduce = (function(){ try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } })();
+
+      if (!logo || !text || reduce) { html.classList.remove("intro-pending"); return; }
+
+      let started = false;
+      function run() {
+        if (started) return;
+        started = true;
+        const r = logo.getBoundingClientRect();
+        const delta = Math.max(0, window.innerHeight / 2 - (r.top + r.height / 2));
+        if (veil) veil.classList.add("show");        // white cover: only the logo shows
+        if (hc)   hc.classList.add("lift");          // raise the logo above the veil
+        logo.style.transition = "none";
+        logo.style.opacity = "0";
+        logo.style.transform = "translateY(" + delta + "px) scale(2)";
+        text.style.transition = "none";
+        text.style.opacity = "0";
+        html.classList.remove("intro-pending");
+        void logo.offsetWidth;                       // commit initial state
+
+        requestAnimationFrame(function () {
+          logo.style.transition = "opacity .45s ease";
+          logo.style.opacity = "1";                   // fade the big, centred logo in
+          setTimeout(function () {
+            logo.style.transition = "transform 1.15s cubic-bezier(.22,.61,.36,1)";
+            logo.style.transform = "translateY(0) scale(1)";   // shrink + slide up
+            if (veil) veil.classList.remove("show");  // reveal the page as the logo settles
+            setTimeout(function () {
+              text.style.transition = "opacity .7s ease";
+              text.style.opacity = "1";               // text fills the freed space
+            }, 320);
+            setTimeout(function () { if (hc) hc.classList.remove("lift"); }, 700);
+          }, 560);
+        });
+
+        // failsafe: never leave the hero mid-animation
+        setTimeout(function () {
+          logo.style.transform = "translateY(0) scale(1)";
+          logo.style.opacity = "1";
+          text.style.opacity = "1";
+          if (veil) veil.classList.remove("show");
+          if (hc) hc.classList.remove("lift");
+        }, 3400);
+      }
+
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { requestAnimationFrame(run); });
+        setTimeout(run, 1200);   // in case fonts.ready is slow
+      } else {
+        window.addEventListener("load", run);
+      }
+    })();
+
+    /* Frames with a data-href on their caption become clickable links.
+       Works whether the caption became visible via hover (desktop) or a
+       tap that opened it (mobile) — a click/tap on the caption itself
+       navigates and doesn't get swallowed by the frame's open/close toggle. */
+    (function () {
+      const caps = document.querySelectorAll(".org-caption[data-href]");
+      caps.forEach(function (cap) {
+        cap.setAttribute("role", "link");
+        cap.setAttribute("tabindex", "0");
+        function go() {
+          const href = cap.getAttribute("data-href");
+          if (href) window.open(href, "_blank", "noopener");
+        }
+        cap.addEventListener("click", function (e) {
+          e.stopPropagation();
+          go();
+        });
+        cap.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            go();
+          }
+        });
+      });
+    })();
+
+    /* Keep every frame's caption fully on-screen, whatever its position or the
+       viewport width — nudges it left/right after it opens if it would overflow. */
+    (function () {
+      const margin = 10;
+      function clampCaption(cap) {
+        cap.style.setProperty("--dx", "0px");
+        requestAnimationFrame(function () {
+          const r = cap.getBoundingClientRect();
+          const vw = window.innerWidth;
+          let dx = 0;
+          if (r.right > vw - margin) dx -= r.right - (vw - margin);
+          if (r.left + dx < margin) dx += margin - (r.left + dx);
+          cap.style.setProperty("--dx", Math.round(dx) + "px");
+        });
+      }
+      document.querySelectorAll(".org-item").forEach(function (item) {
+        const cap = item.querySelector(".org-caption");
+        if (!cap) return;
+        item.addEventListener("mouseenter", function () { clampCaption(cap); });
+        item.addEventListener("mouseleave", function () { cap.style.setProperty("--dx", "0px"); });
+        item.addEventListener("click", function () {
+          requestAnimationFrame(function () {
+            if (item.classList.contains("is-open")) clampCaption(cap);
+            else cap.style.setProperty("--dx", "0px");
+          });
+        });
+      });
+    })();
+
+    /* Touch devices: tap a frame to toggle its caption (no hover there) */
+    (function () {
+      const cluster = document.querySelector(".org-cluster");
+      if (!cluster) return;
+      let touch = false;
+      try { touch = matchMedia("(hover: none)").matches; } catch (e) {}
+      if (!touch) return;
+
+      const items = Array.from(cluster.querySelectorAll(".org-item"));
+      items.forEach(function (it) {
+        it.style.cursor = "pointer";
+        it.addEventListener("click", function () {
+          const open = it.classList.contains("is-open");
+          items.forEach(function (o) { o.classList.remove("is-open"); });
+          if (!open) it.classList.add("is-open");
+        });
+      });
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest(".org-item")) {
+          items.forEach(function (o) { o.classList.remove("is-open"); });
+        }
+      });
+    })();
+
+    /* Touch devices: tap a timeline sign to toggle its event card */
+    (function () {
+      const stage = document.querySelector(".tl-stage");
+      if (!stage) return;
+      let touch = false;
+      try { touch = matchMedia("(hover: none)").matches; } catch (e) {}
+      if (!touch) return;
+      const evs = Array.from(stage.querySelectorAll(".tl-event"));
+      evs.forEach(function (ev) {
+        const hit = ev.querySelector(".tl-hit");
+        if (!hit) return;
+        hit.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const open = ev.classList.contains("is-open");
+          evs.forEach(function (o) { o.classList.remove("is-open"); });
+          if (!open) ev.classList.add("is-open");
+        });
+      });
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest(".tl-event")) evs.forEach(function (o) { o.classList.remove("is-open"); });
+      });
+    })();
+
+    const form     = document.getElementById("contact-form");
+    const btn      = document.getElementById("submit-btn");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(msg, state) {
+      statusEl.textContent = msg;
+      if (state) statusEl.setAttribute("data-state", state);
+      else statusEl.removeAttribute("data-state");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (!form.checkValidity()) {
+        setStatus("Merci de remplir tous les champs requis.", "error");
+        form.reportValidity();
+        return;
+      }
+      if (!MAKE_WEBHOOK_URL) {
+        setStatus("Le formulaire n'est pas encore connecté (webhook manquant).", "error");
+        return;
+      }
+
+      const payload = {
+        name:    form.name.value.trim(),
+        email:   form.email.value.trim(),
+        message: form.message.value.trim(),
+        submittedAt: new Date().toISOString(),
+        source: location.href
+      };
+
+      btn.disabled = true;
+      setStatus("Envoi en cours…");
+
+      try {
+        const res = await fetch(MAKE_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        form.reset();
+        setStatus("Merci, votre message a bien été envoyé.", "ok");
+      } catch (err) {
+        setStatus("Une erreur est survenue. Réessayez dans un instant.", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

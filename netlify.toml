@@ -1,0 +1,14 @@
+# Netlify — sert UNIQUEMENT le site vitrine (etonnament.fr).
+#
+# L'app événementielle vit dans app/ et part sur Scaleway
+# (app.etonnament.fr) via deploy-app.sh. Netlify ne la voit jamais.
+
+[build]
+  publish = "site"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"

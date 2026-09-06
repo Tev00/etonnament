@@ -1,0 +1,38 @@
+# /etc/systemd/system/pocketbase.service
+#
+# For PHASE 2 — not needed to get the static site live.
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now pocketbase
+#   sudo systemctl status pocketbase
+#   journalctl -u pocketbase -f
+
+[Unit]
+Description=PocketBase
+After=network.target
+
+[Service]
+Type=simple
+User=pocketbase
+Group=pocketbase
+WorkingDirectory=/opt/pocketbase
+
+# Bound to localhost ONLY. Caddy is the sole public entry point, which means
+# TLS is handled in one place and PocketBase is never directly reachable.
+ExecStart=/opt/pocketbase/pocketbase serve --http=127.0.0.1:8090
+
+Restart=always
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/pocketbase/pb_data
+
+# PocketBase opens a lot of SSE connections (one per connected device).
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
