@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Régie — Étonnamment d'accord</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Londrina+Solid:wght@300;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared/base.css" />
+
+  <style>
+    .wrap { max-width: 760px; }
+    fieldset {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 0 0 20px;
+    }
+    legend { font-weight: 600; padding: 0 6px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .flags { display: grid; gap: 10px; }
+    .flag {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
+    }
+    .flag:last-child { border-bottom: 0; padding-bottom: 0; }
+    .flag code { font-size: 14px; color: var(--ink-muted); }
+    .err {
+      background: #FDECEA;
+      border-left: 3px solid var(--warn);
+      color: var(--warn);
+      padding: 10px 14px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    .note { font-size: 14px; color: var(--ink-muted); }
+  </style>
+</head>
+<body>
+  <div class="conn" id="conn"></div>
+
+  <main class="wrap">
+    <h1>Régie</h1>
+    <p class="note" id="now">…</p>
+
+    <div class="err" id="err" hidden></div>
+
+    <fieldset>
+      <legend>Écran des participants — <code>stage</code></legend>
+      <div class="grid" id="stages"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ce qui est permis</legend>
+      <div class="flags" id="flags"></div>
+      <p class="note">
+        Indépendants du <code>stage</code> à dessein&nbsp;: rouvrir la mission
+        d'entrée pour un retardataire ne fait pas reculer toute la salle.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Îlots</legend>
+      <label>Nombre d'îlots actifs
+        <input type="number" id="islands" min="1" max="30" style="width:5em" />
+      </label>
+      <button id="saveIslands">Enregistrer</button>
+    </fieldset>
+
+    <p class="note">
+      ⚠️ Les règles d'API sont ouvertes pour le développement. À fermer avant
+      l'événement — voir docs/app-spec.md §4.
+    </p>
+  </main>
+
+  <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    var STAGES = ['accueil','mission','consigne','ilots','propositions','vote','resultats','cloture'];
+    var FLAGS = [
+      ['entry_open',        'Mission d’entrée'],
+      ['propositions_open', 'Saisie des propositions'],
+      ['vote_open',         'Vote'],
+      ['feedback_open',     'Questionnaire de clôture']
+    ];
+
+    var conn = document.getElementById('conn');
+    var err = document.getElementById('err');
+    var now = document.getElementById('now');
+    var stagesEl = document.getElementById('stages');
+    var flagsEl = document.getElementById('flags');
+    var islandsEl = document.getElementById('islands');
+
+    function fail(e) {
+      err.hidden = false;
+      err.textContent = 'Échec de l’écriture : ' + (e && e.message ? e.message : e);
+    }
+    function ok() { err.hidden = true; }
+
+    // --- boutons de stage ---
+    STAGES.forEach(function (name) {
+      var b = document.createElement('button');
+      b.textContent = name;
+      b.dataset.stage = name;
+      b.addEventListener('click', function () {
+        ok();
+        App.patchSession({ stage: name }).catch(fail);
+      });
+      stagesEl.appendChild(b);
+    });
+
+    // --- bascules booléennes ---
+    FLAGS.forEach(function (pair) {
+      var key = pair[0], label = pair[1];
+      var row = document.createElement('div');
+      row.className = 'flag';
+      row.innerHTML = '<span>' + label + ' <code>' + key + '</code></span>';
+      var b = document.createElement('button');
+      b.dataset.flag = key;
+      b.addEventListener('click', function () {
+        ok();
+        var s = App.session;
+        if (!s) return;
+        var patch = {};
+        patch[key] = !s[key];
+        App.patchSession(patch).catch(fail);
+      });
+      row.appendChild(b);
+      flagsEl.appendChild(row);
+    });
+
+    document.getElementById('saveIslands').addEventListener('click', function () {
+      ok();
+      var n = parseInt(islandsEl.value, 10);
+      if (!(n >= 1)) return fail('nombre d’îlots invalide');
+      App.patchSession({ islands_count: n }).catch(fail);
+    });
+
+    App.onStatus(function (status) {
+      conn.dataset.status = status;
+      conn.textContent = status === 'offline'
+        ? 'Connexion perdue — vos commandes ne partiront pas'
+        : 'Connexion…';
+    });
+
+    App.onSession(function (s) {
+      now.textContent = 'stage : ' + s.stage + ' · îlots : ' + s.islands_count;
+
+      stagesEl.querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.stage === s.stage));
+      });
+
+      flagsEl.querySelectorAll('button').forEach(function (b) {
+        var on = s[b.dataset.flag] === true;
+        b.setAttribute('aria-pressed', String(on));
+        b.textContent = on ? 'ouvert' : 'fermé';
+      });
+
+      // Ne pas écraser ce que le facilitateur est en train de taper.
+      if (document.activeElement !== islandsEl) islandsEl.value = s.islands_count;
+    });
+
+    App.start();
+  </script>
+</body>
+</html>

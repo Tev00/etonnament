@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projection — Étonnamment d'accord</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Londrina+Solid:wght@300;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared/base.css" />
+
+  <style>
+    /* Cette page tourne sur le navigateur du vidéoprojecteur, en plein écran,
+       vue de loin. Tout est surdimensionné et rien ne défile. */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100vh;
+      overflow: hidden;
+      cursor: none;
+    }
+    .stageview { padding: 4vh 4vw; }
+    .kicker {
+      font-size: clamp(16px, 2vw, 26px);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-bottom: 2vh;
+    }
+    .headline {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(48px, 11vw, 190px);
+      line-height: 1.02;
+      margin: 0;
+    }
+    .sub { font-size: clamp(18px, 2.4vw, 34px); color: var(--ink-muted); margin-top: 3vh; }
+
+    /* Le bandeau de connexion ne doit jamais masquer le contenu projeté :
+       sur grand écran il devient un simple liseré en bas. */
+    .conn {
+      top: auto; bottom: 0;
+      transform: translateY(100%);
+      font-size: 15px;
+    }
+    .conn[data-status="offline"],
+    .conn[data-status="connecting"] { transform: none; }
+  </style>
+</head>
+<body>
+  <div class="conn" id="conn"></div>
+
+  <div class="stageview">
+    <div class="kicker" id="kicker">Étonnamment d'accord</div>
+    <h1 class="headline" id="headline">…</h1>
+    <div class="sub" id="sub"></div>
+  </div>
+
+  <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    // Étape 1 : la projection ne fait que refléter `stage`. Les agrégats
+    // (entry_results, vote_results) arrivent aux étapes 3 et 6.
+    var VUES = {
+      accueil:      { kicker: 'Bienvenue',        head: 'Étonnamment d’accord', sub: 'La soirée va commencer' },
+      mission:      { kicker: 'Mission d’entrée', head: 'Sortez votre téléphone', sub: 'app.etonnamment.fr' },
+      consigne:     { kicker: 'Rencontre',        head: 'Trouvez quelqu’un qui…', sub: '' },
+      ilots:        { kicker: 'Îlots',            head: 'Rejoignez votre îlot',   sub: '' },
+      propositions: { kicker: 'Propositions',     head: 'À vous d’écrire',      sub: 'Deux propositions par îlot' },
+      vote:         { kicker: 'Vote',             head: 'Votez',                  sub: 'Sur votre téléphone' },
+      resultats:    { kicker: 'Résultats',        head: 'Ce sur quoi vous êtes d’accord', sub: '' },
+      cloture:      { kicker: 'Merci',            head: 'À bientôt',              sub: '' }
+    };
+
+    var conn = document.getElementById('conn');
+    var kicker = document.getElementById('kicker');
+    var headline = document.getElementById('headline');
+    var sub = document.getElementById('sub');
+
+    App.onStatus(function (status) {
+      conn.dataset.status = status;
+      // Sur grand écran on n'affiche jamais d'erreur brutale : on signale
+      // discrètement, et le dernier état connu reste à l'écran (spec §7).
+      conn.textContent = status === 'offline'
+        ? 'Reconnexion en cours — affichage figé sur le dernier état connu'
+        : 'Connexion…';
+    });
+
+    App.onSession(function (s) {
+      var v = VUES[s.stage];
+      if (!v) return;              // stage inconnu : on garde l'écran précédent
+      kicker.textContent = v.kicker;
+      headline.textContent = v.head;
+      sub.textContent = v.sub;
+    });
+
+    App.start();
+  </script>
+</body>
+</html>

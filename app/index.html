@@ -12,74 +12,114 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Beth+Ellen&family=Inter:wght@400;500;600&family=Londrina+Solid:wght@300;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Londrina+Solid:wght@300;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared/base.css" />
 
   <style>
-    :root {
-      --bg: #fff;
-      --ink: #141414;
-      --ink-muted: #6b6b6b;
-      --accent: #ee5340;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 26px;
-      padding: 40px 24px;
-      text-align: center;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    .logo { width: min(76vw, 460px); height: auto; }
-    .note {
-      font-family: "Londrina Solid", sans-serif;
-      font-weight: 300;
-      font-size: clamp(18px, 2.4vw, 23px);
-      line-height: 1.5;
-      max-width: 34ch;
-      margin: 0;
-    }
-    .hook {
-      font-family: "Beth Ellen", cursive;
-      color: var(--accent);
-      font-size: clamp(20px, 3vw, 28px);
-      margin: 0;
-    }
-    .back {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--ink-muted);
-      text-decoration: none;
-      border-bottom: 1px solid #e1e1dc;
-      padding-bottom: 2px;
-      transition: color .15s ease, border-color .15s ease;
-    }
-    .back:hover { color: var(--accent); border-color: var(--accent); }
-    .stamp {
-      position: fixed;
-      bottom: 14px;
-      font-size: 11px;
-      letter-spacing: .08em;
+    .logo { width: min(60vw, 280px); height: auto; display: block; margin: 0 auto 28px; }
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+    .stage-name {
+      display: inline-block;
+      font-size: 12px;
+      letter-spacing: .1em;
       text-transform: uppercase;
-      color: #b4b4ae;
+      color: var(--ink-muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin-bottom: 16px;
+    }
+    .closed {
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
+      color: var(--ink-muted);
     }
   </style>
 </head>
 <body>
-  <img class="logo" src="assets/Main_Logo.png" alt="Étonnamment d'accord" />
-  <p class="hook">Bientôt&nbsp;!</p>
-  <p class="note">L'espace de la soirée ouvrira ici le jour J. En attendant, tout se passe sur le site.</p>
-  <a class="back" href="https://etonnamment.fr">Retour au site ↗</a>
+  <div class="conn" id="conn"></div>
 
-  <!-- Sert de test de déploiement : si vous voyez ce tampon, le pipeline
-       rsync → Caddy fonctionne. À supprimer quand la vraie app arrive. -->
-  <span class="stamp">déploiement ok</span>
+  <main class="wrap">
+    <img class="logo" src="assets/Main_Logo.png" alt="Étonnamment d'accord" />
+
+    <span class="stage-name" id="stageName">…</span>
+
+    <!-- Étape 1 de la spec : chaque panneau n'est qu'une coquille. Le contenu
+         réel arrive aux étapes suivantes. Ce qu'on vérifie ici, c'est que le
+         bon panneau s'affiche et qu'il change sans rechargement. -->
+
+    <section class="panel" data-stage="accueil">
+      <h1>Bienvenue</h1>
+      <p>La soirée va commencer. Gardez cette page ouverte&nbsp;: elle se mettra à jour toute seule.</p>
+    </section>
+
+    <section class="panel" data-stage="mission">
+      <h1>Mission d'entrée</h1>
+      <p class="muted">Sept questions, une par écran.</p>
+      <p class="closed" data-when-closed="entry_open">La mission d'entrée est fermée pour le moment.</p>
+    </section>
+
+    <section class="panel" data-stage="consigne">
+      <h1>Trouvez quelqu'un qui…</h1>
+      <p class="muted">Votre consigne de rencontre s'affichera ici.</p>
+    </section>
+
+    <section class="panel" data-stage="ilots">
+      <h1>Votre îlot</h1>
+      <p class="muted">Le numéro de votre îlot s'affichera ici.</p>
+    </section>
+
+    <section class="panel" data-stage="propositions">
+      <h1>Vos propositions</h1>
+      <p class="closed" data-when-closed="propositions_open">La saisie n'est pas encore ouverte.</p>
+    </section>
+
+    <section class="panel" data-stage="vote">
+      <h1>Vote</h1>
+      <p class="closed" data-when-closed="vote_open">Le vote n'est pas encore ouvert.</p>
+    </section>
+
+    <section class="panel" data-stage="resultats">
+      <h1>Regardez l'écran</h1>
+      <p class="muted">Les résultats sont projetés dans la salle.</p>
+    </section>
+
+    <section class="panel" data-stage="cloture">
+      <h1>Avant de partir</h1>
+      <p class="closed" data-when-closed="feedback_open">Le questionnaire n'est pas encore ouvert.</p>
+    </section>
+  </main>
+
+  <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/app.js"></script>
+  <script>
+    var conn = document.getElementById('conn');
+    var stageName = document.getElementById('stageName');
+    var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+
+    App.onStatus(function (status) {
+      conn.dataset.status = status;
+      conn.textContent = status === 'offline'
+        ? 'Connexion perdue — la page se rétablira toute seule'
+        : 'Connexion…';
+    });
+
+    App.onSession(function (s) {
+      stageName.textContent = s.stage;
+
+      panels.forEach(function (p) {
+        p.classList.toggle('is-active', p.dataset.stage === s.stage);
+      });
+
+      // Un panneau peut être l'écran courant tout en étant fermé à l'écriture :
+      // `stage` dit où l'on est, les booléens disent ce qui est permis (spec §3).
+      document.querySelectorAll('[data-when-closed]').forEach(function (el) {
+        el.hidden = s[el.dataset.whenClosed] === true;
+      });
+    });
+
+    App.start();
+  </script>
 </body>
 </html>
