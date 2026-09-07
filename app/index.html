@@ -35,6 +35,21 @@
       padding-left: 14px;
       color: var(--ink-muted);
     }
+
+    /* ---- mission d'entrée ---- */
+    .progress { height: 3px; background: var(--line); border-radius: 2px; margin-bottom: 20px; }
+    .progress span { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .25s ease; }
+    .step { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
+    #qtext { font-size: clamp(22px, 5vw, 30px); line-height: 1.25; margin-bottom: 24px; }
+
+    .options { display: grid; gap: 10px; }
+    /* Cibles tactiles généreuses : on répond debout, en tenant son manteau. */
+    .options button { text-align: left; padding: 16px 18px; font-size: 17px; }
+
+    .nav { display: flex; align-items: center; gap: 14px; margin-top: 22px; min-height: 40px; }
+    .nav button { padding: 8px 14px; font-size: 15px; }
+    #prev[hidden] { display: none; }
+    .saved { font-size: 14px; }
   </style>
 </head>
 <body>
@@ -55,9 +70,23 @@
     </section>
 
     <section class="panel" data-stage="mission">
-      <h1>Mission d'entrée</h1>
-      <p class="muted">Sept questions, une par écran.</p>
       <p class="closed" data-when-closed="entry_open">La mission d'entrée est fermée pour le moment.</p>
+
+      <div id="mission" hidden>
+        <div class="progress"><span id="progressBar"></span></div>
+        <p class="step muted" id="step"></p>
+        <h1 id="qtext"></h1>
+        <div class="options" id="options"></div>
+        <div class="nav">
+          <button id="prev" type="button">Retour</button>
+          <span class="saved muted" id="saved"></span>
+        </div>
+      </div>
+
+      <div id="missionDone" hidden>
+        <h1>C'est noté</h1>
+        <p>Merci. Gardez cette page ouverte&nbsp;: la suite s'affichera ici.</p>
+      </div>
     </section>
 
     <section class="panel" data-stage="consigne">
@@ -92,6 +121,7 @@
   </main>
 
   <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/questions.js"></script>
   <script src="shared/app.js"></script>
   <script>
     var conn = document.getElementById('conn');
@@ -118,6 +148,106 @@
         el.hidden = s[el.dataset.whenClosed] === true;
       });
     });
+
+    /* ---- Mission d'entrée -------------------------------------------------
+     * Une question par écran. Chaque réponse part immédiatement : si quelqu'un
+     * abandonne à Q5, les quatre premières sont déjà en base (spec §1.2).
+     * On reprend là où le participant s'était arrêté. */
+    var missionEl = document.getElementById('mission');
+    var doneEl = document.getElementById('missionDone');
+    var qtext = document.getElementById('qtext');
+    var optionsEl = document.getElementById('options');
+    var stepEl = document.getElementById('step');
+    var barEl = document.getElementById('progressBar');
+    var prevBtn = document.getElementById('prev');
+    var savedEl = document.getElementById('saved');
+
+    var answers = {};   // question -> choice
+    var index = 0;
+    var ready = false;
+
+    function firstUnanswered() {
+      for (var i = 0; i < QUESTIONS.length; i++) {
+        if (!answers[QUESTIONS[i].key]) return i;
+      }
+      return QUESTIONS.length;
+    }
+
+    function renderMission() {
+      if (!ready) return;
+
+      if (index >= QUESTIONS.length) {
+        missionEl.hidden = true;
+        doneEl.hidden = false;
+        return;
+      }
+      missionEl.hidden = false;
+      doneEl.hidden = true;
+
+      var q = QUESTIONS[index];
+      stepEl.textContent = 'Question ' + (index + 1) + ' sur ' + QUESTIONS.length;
+      barEl.style.width = Math.round((index / QUESTIONS.length) * 100) + '%';
+      qtext.textContent = q.text;
+      prevBtn.hidden = index === 0;
+
+      optionsEl.textContent = '';
+      q.options.forEach(function (opt) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = opt.label;
+        b.setAttribute('aria-pressed', String(answers[q.key] === opt.key));
+        b.addEventListener('click', function () { choose(q, opt); });
+        optionsEl.appendChild(b);
+      });
+    }
+
+    function choose(q, opt) {
+      answers[q.key] = opt.key;
+
+      // On avance tout de suite. L'écriture réseau ne doit jamais faire
+      // attendre quelqu'un debout dans un hall : en cas d'échec elle part
+      // dans la file et sera rejouée (spec §7).
+      App.saveAnswer(q.key, opt.key).then(function () {
+        savedEl.textContent = App.pendingWrites
+          ? App.pendingWrites + ' réponse(s) en attente d’envoi'
+          : '';
+      });
+
+      index++;
+      renderMission();
+
+      if (index >= QUESTIONS.length) finish();
+    }
+
+    function finish() {
+      // entry_done marque la fin du parcours ; c'est aussi ce qui déclenchera
+      // l'affectation d'îlot à l'étape 4.
+      App.pb.collection('participants')
+        .update(App.participant.id, { entry_done: true })
+        .catch(function (e) { console.warn('entry_done non enregistré', e); });
+    }
+
+    prevBtn.addEventListener('click', function () {
+      if (index > 0) { index--; renderMission(); }
+    });
+
+    App.ensureParticipant()
+      .then(function () { return App.loadAnswers(); })
+      .then(function (existing) {
+        answers = existing;
+        index = firstUnanswered();
+        ready = true;
+        renderMission();
+        App.flushQueue();
+      })
+      .catch(function (err) {
+        console.error('identité impossible', err);
+        stepEl.textContent = '';
+        qtext.textContent = 'Connexion impossible';
+        optionsEl.textContent = '';
+        missionEl.hidden = false;
+        savedEl.textContent = 'Rechargez la page dans un instant.';
+      });
 
     App.start();
   </script>

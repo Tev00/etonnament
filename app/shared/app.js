@@ -80,11 +80,17 @@
 
   function startPolling() {
     setInterval(function () {
-      fetchSession().catch(function () {
+      fetchSession().then(function () {
+        // Le réseau répond : c'est le moment de vider la file.
+        flushQueue();
+      }).catch(function () {
         // Réseau coupé : on le signale, mais on garde `session` intact.
         setStatus('offline');
       });
     }, POLL_MS);
+
+    // Le navigateur sait souvent avant nous que le wifi est revenu.
+    global.addEventListener('online', function () { flushQueue(); });
   }
 
   /* Depuis localhost on écrit en production. Un bandeau non dissimulable, sur
@@ -122,10 +128,189 @@
     startPolling();
   }
 
+  /* ---------------------------------------------------------------------
+   * Identité anonyme
+   *
+   * Aucun email, aucun mot de passe saisi. On génère les deux, on crée le
+   * compte, et on garde les identifiants en localStorage pour se
+   * réauthentifier si le token expire ou si l'onglet est rouvert.
+   *
+   * Ce mot de passe n'est pas un secret : c'est un jeton de continuité
+   * (spec §8). Ne jamais y attacher quoi que ce soit de sensible.
+   * ------------------------------------------------------------------- */
+  var ID_KEY = 'etonnamment.identity';
+
+  function randomString(len) {
+    var alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    var bytes = new Uint32Array(len);
+    global.crypto.getRandomValues(bytes);
+    var out = '';
+    for (var i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];
+    return out;
+  }
+
+  function readIdentity() {
+    try { return JSON.parse(global.localStorage.getItem(ID_KEY)); }
+    catch (e) { return null; }
+  }
+
+  function writeIdentity(id) {
+    try { global.localStorage.setItem(ID_KEY, JSON.stringify(id)); }
+    catch (e) { console.warn('localStorage indisponible', e); }
+  }
+
+  /* La collection `participants` est configurée avec identityFields: ["email"]
+   * (usernamePassword: false) : on ne PEUT pas se connecter par username, quoi
+   * qu'en dise la spec §1.1. On génère donc une adresse de synthèse sur le TLD
+   * `.invalid`, réservé par la RFC 2606 et donc jamais routable — personne ne
+   * peut recevoir de courrier à cette adresse, et `emailVisibility` reste
+   * false. L'anonymat est intact ; seule la forme du jeton change.
+   *
+   * Pour revenir à la spec à la lettre : cocher `username` dans les
+   * identityFields de la collection, côté admin PocketBase. */
+  var EMAIL_DOMAIN = '@participant.etonnamment.invalid';
+
+  function createIdentity() {
+    var handle = 'p_' + randomString(16);
+    var id = {
+      username: handle,
+      email: handle + EMAIL_DOMAIN,
+      password: randomString(32)
+    };
+    return pb.collection('participants').create({
+      username: id.username,
+      email: id.email,
+      emailVisibility: false,
+      password: id.password,
+      passwordConfirm: id.password
+    }).then(function () {
+      writeIdentity(id);
+      return id;
+    });
+  }
+
+  /** Authentifie le participant, en créant le compte à la première visite.
+   *  Résout avec l'enregistrement participant. */
+  function ensureParticipant() {
+    var id = readIdentity();
+
+    function auth(identity) {
+      return pb.collection('participants')
+        .authWithPassword(identity.email || identity.username, identity.password)
+        .then(function (res) { return res.record; });
+    }
+
+    // Une identité enregistrée avant l'ajout de l'email ne peut plus se
+    // connecter : on la traite comme absente et on en refait une.
+    if (id && !id.email) id = null;
+
+    if (id && id.username && id.password) {
+      return auth(id).catch(function (err) {
+        // Compte disparu (base réinitialisée entre deux répétitions) : on en
+        // refait un plutôt que de laisser le participant sur une erreur.
+        console.warn('réauthentification impossible, nouvelle identité', err);
+        return createIdentity().then(auth);
+      });
+    }
+    return createIdentity().then(auth);
+  }
+
+  /* ---------------------------------------------------------------------
+   * File d'attente d'écriture (spec §7)
+   *
+   * Le wifi de la salle est le risque n°1. Toute réponse qui n'part pas est
+   * gardée en localStorage et rejouée. Les réponses sont idempotentes par
+   * (participant, question) : la file se dédoublonne sur `question`, donc
+   * elle ne grossit pas si quelqu'un change trois fois d'avis hors ligne.
+   * ------------------------------------------------------------------- */
+  var QUEUE_KEY = 'etonnamment.queue';
+
+  function readQueue() {
+    try { return JSON.parse(global.localStorage.getItem(QUEUE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+
+  function writeQueue(q) {
+    try { global.localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+    catch (e) { console.warn('localStorage indisponible', e); }
+  }
+
+  function enqueue(item) {
+    var q = readQueue().filter(function (x) { return x.question !== item.question; });
+    q.push(item);
+    writeQueue(q);
+  }
+
+  // Réponses déjà en base pour ce participant : question -> id d'enregistrement.
+  var answerIds = Object.create(null);
+
+  function pushAnswer(question, choice) {
+    var pid = pb.authStore.model && pb.authStore.model.id;
+    if (!pid) return Promise.reject(new Error('participant non authentifié'));
+
+    var existing = answerIds[question];
+    if (existing) {
+      return pb.collection('entry_answers').update(existing, { choice: choice });
+    }
+    return pb.collection('entry_answers')
+      .create({ participant: pid, question: question, choice: choice })
+      .then(function (rec) { answerIds[question] = rec.id; return rec; });
+  }
+
+  /** Rejoue la file. Silencieux : appelé souvent, échoue souvent, sans bruit. */
+  function flushQueue() {
+    var q = readQueue();
+    if (!q.length) return Promise.resolve();
+
+    return q.reduce(function (chain, item) {
+      return chain.then(function () {
+        return pushAnswer(item.question, item.choice).then(function () {
+          writeQueue(readQueue().filter(function (x) {
+            return !(x.question === item.question && x.choice === item.choice);
+          }));
+        });
+      });
+    }, Promise.resolve()).catch(function () { /* on retentera */ });
+  }
+
   global.App = {
     pb: pb,
     isDev: isDev,
     apiBase: API_BASE,
+
+    ensureParticipant: ensureParticipant,
+
+    get participant() { return pb.authStore.model; },
+
+    /** Charge les réponses déjà données, pour reprendre où on s'était arrêté. */
+    loadAnswers: function () {
+      var pid = pb.authStore.model && pb.authStore.model.id;
+      if (!pid) return Promise.resolve({});
+      return pb.collection('entry_answers').getFullList({
+        filter: 'participant="' + pid + '"',
+        requestKey: null
+      }).then(function (rows) {
+        var byQuestion = {};
+        rows.forEach(function (r) {
+          answerIds[r.question] = r.id;
+          byQuestion[r.question] = r.choice;
+        });
+        return byQuestion;
+      });
+    },
+
+    /** Enregistre une réponse. Résout immédiatement même hors ligne : la
+     *  réponse part dans la file et le participant continue sans friction. */
+    saveAnswer: function (question, choice) {
+      return pushAnswer(question, choice).catch(function (err) {
+        console.warn('réponse mise en file', err);
+        enqueue({ question: question, choice: choice });
+      });
+    },
+
+    get pendingWrites() { return readQueue().length; },
+
+    flushQueue: flushQueue,
 
     /** Dernier état connu de la session, ou null avant le premier chargement. */
     get session() { return session; },
