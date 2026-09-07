@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 #
-# Déploie l'app (app/) vers l'instance Scaleway servant app.etonnament.fr.
+# Déploie l'app (app/) vers l'instance Scaleway servant app.etonnamment.fr.
 # Le site vitrine (site/) reste sur Netlify et n'est pas concerné.
+#
+# Cible /var/www/etonnamment/app/ et non la racine : la racine sert une copie
+# de la vitrine, et ce script utilise --delete.
 #
 #   chmod +x deploy-app.sh      # une seule fois
 #   ./deploy-app.sh
@@ -13,8 +16,8 @@
 
 set -euo pipefail
 
-DEPLOY_HOST="${DEPLOY_HOST:-deploy@app.etonnament.fr}"
-DEPLOY_PATH="${DEPLOY_PATH:-/var/www/app/}"
+DEPLOY_HOST="${DEPLOY_HOST:-deploy@app.etonnamment.fr}"
+DEPLOY_PATH="${DEPLOY_PATH:-/var/www/etonnamment/app/}"
 SRC="${SRC:-./app/}"
 
 if [ ! -d "$SRC" ]; then
@@ -49,4 +52,4 @@ rsync -avz --delete \
   "$SRC" "${DEPLOY_HOST}:${DEPLOY_PATH}"
 
 echo
-echo "✓ Déployé — https://app.etonnament.fr"
+echo "✓ Déployé — https://app.etonnamment.fr/app/"

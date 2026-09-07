@@ -4,8 +4,8 @@ Deux choses dans un seul dépôt, déployées à deux endroits différents.
 
 | Dossier | Contenu | Va sur | URL |
 |---|---|---|---|
-| `site/` | site vitrine | Netlify | `etonnament.fr` |
-| `app/` | app de la soirée | Scaleway | `app.etonnament.fr` |
+| `site/` | site vitrine | Netlify | `etonnamment.fr` |
+| `app/` | app de la soirée | Scaleway | `app.etonnamment.fr/app/` |
 
 Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 `docs/SCALEWAY-SETUP.md` pour le raisonnement.
@@ -16,10 +16,10 @@ Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 
 ```
 .
-├── site/                  → Netlify  (etonnament.fr)
+├── site/                  → Netlify  (etonnamment.fr)
 │   ├── index.html
 │   └── assets/
-├── app/                   → Scaleway (app.etonnament.fr)
+├── app/                   → Scaleway (app.etonnamment.fr/app/)
 │   ├── index.html         page d'attente (à remplacer par l'app)
 │   └── assets/
 ├── server/                configs de la machine Scaleway
@@ -43,7 +43,7 @@ Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 
 ```bash
 chmod +x deploy-app.sh        # une seule fois
-./deploy-app.sh               # rsync vers app.etonnament.fr
+./deploy-app.sh               # rsync vers app.etonnamment.fr/app/
 
 # avant que le DNS existe, ciblez l'IP :
 DEPLOY_HOST=deploy@<IP> ./deploy-app.sh
@@ -60,7 +60,7 @@ ce soit. Rollback : `git revert` puis relancer.
 - [x] Formulaire de contact relié au webhook Make
 - [x] Spécification technique de l'app (`docs/app-spec.md`)
 - [ ] Instance Scaleway créée et durcie
-- [ ] `app.etonnament.fr` en ligne (page d'attente)
+- [ ] `app.etonnamment.fr` en ligne (page d'attente)
 - [ ] PocketBase installé, schéma créé
 - [ ] App : mission d'entrée, îlots, propositions, vote, feedback
 - [ ] Régie + projection
@@ -70,8 +70,9 @@ ce soit. Rollback : `git revert` puis relancer.
 
 ## À savoir
 
-- Le domaine s'écrit **`etonnament.fr`** (un seul « m » central), alors que la
-  marque s'écrit « Étonnamment ». Ce n'est pas une faute de frappe.
+- Le domaine s'écrit **`etonnamment.fr`**, avec deux « m », comme la marque
+  « Étonnamment ». La graphie à un seul « m » (`etonnament.fr`) n'est pas
+  enregistrée et ne résout pas — si un lien ne répond pas, compter les « m ».
 - `pb_data/` est dans `.gitignore` : il contiendra les réponses des
   participants. Ne jamais le committer.
 - Les libellés des questions (annexe A) vivent dans `app/shared/questions.js`,

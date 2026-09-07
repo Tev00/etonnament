@@ -1,12 +1,12 @@
 # /etc/caddy/Caddyfile
 #
-# Sert UNIQUEMENT app.etonnament.fr (l'app événementielle).
-# etonnament.fr reste sur Netlify et n'est pas concerné par ce fichier.
+# Sert UNIQUEMENT app.etonnamment.fr (l'app événementielle).
+# etonnamment.fr reste sur Netlify et n'est pas concerné par ce fichier.
 #
 # Caddy obtient et renouvelle le certificat Let's Encrypt tout seul,
 # à condition que l'enregistrement DNS A « app » pointe déjà ici.
 
-app.etonnament.fr {
+app.etonnamment.fr {
 	encode zstd gzip
 
 	header {
@@ -22,31 +22,31 @@ app.etonnament.fr {
 	# PHASE 2 — LAISSER COMMENTÉ tant que PocketBase n'est pas installé.
 	# Décommenter avant que le service existe renvoie des 502 sur /api.
 	# ------------------------------------------------------------------
-	# handle /api/* {
-	# 	reverse_proxy 127.0.0.1:8090 {
-	# 		# Le temps réel PocketBase, ce sont des Server-Sent Events :
-	# 		# une connexion ouverte toute la soirée. Caddy détecte
-	# 		# text/event-stream et cesse de bufferiser de lui-même, mais
-	# 		# l'expliciter ne coûte rien et supprime une classe de bugs
-	# 		# « l'écran de projection s'est figé ».
-	# 		flush_interval -1
-	# 	}
-	# }
-	#
-	# handle /_/* {
-	# 	# Interface d'admin PocketBase. Deux options :
-	# 	#   1. restreindre par IP —
-	# 	#      @admin remote_ip 203.0.113.4
-	# 	#      handle @admin { reverse_proxy 127.0.0.1:8090 }
-	# 	#      respond 404
-	# 	#   2. laisser ouvert avec un mot de passe long et unique.
-	# 	# Ne pas laisser ouvert avec un mot de passe faible.
-	# 	reverse_proxy 127.0.0.1:8090
-	# }
+	 handle /api/* {
+	 	reverse_proxy 127.0.0.1:8090 {
+	 		# Le temps réel PocketBase, ce sont des Server-Sent Events :
+	 		# une connexion ouverte toute la soirée. Caddy détecte
+	 		# text/event-stream et cesse de bufferiser de lui-même, mais
+	 		# l'expliciter ne coûte rien et supprime une classe de bugs
+	 		# « l'écran de projection s'est figé ».
+	 		flush_interval -1
+	 	}
+	 }
+	
+	 handle /_/* {
+	 	# Interface d'admin PocketBase. Deux options :
+	 	#   1. restreindre par IP —
+	 	#      @admin remote_ip 203.0.113.4
+	 	#      handle @admin { reverse_proxy 127.0.0.1:8090 }
+	 	#      respond 404
+	 	#   2. laisser ouvert avec un mot de passe long et unique.
+	 	# Ne pas laisser ouvert avec un mot de passe faible.
+	 	reverse_proxy 127.0.0.1:8090
+	 }
 
 	# --- fichiers statiques de l'app -----------------------------------
 	handle {
-		root * /var/www/app
+		root * /var/www/etonnamment
 
 		# Donne des URL propres sans routeur JS :
 		#   /projection  ->  projection.html

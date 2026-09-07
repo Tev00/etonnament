@@ -1,7 +1,7 @@
-# app.etonnament.fr sur Scaleway
+# app.etonnamment.fr sur Scaleway
 
 Runbook. On monte un sous-domaine pour l'app événementielle.
-**`etonnament.fr` ne bouge pas** : le site vitrine reste sur Netlify, intact.
+**`etonnamment.fr` ne bouge pas** : le site vitrine reste sur Netlify, intact.
 
 ---
 
@@ -11,8 +11,8 @@ Le DNS résout des noms d'hôte, pas des chemins. En donnant à l'app son propre
 nom d'hôte, on évite tout proxy — et donc tout le risque qui va avec.
 
 ```
-etonnament.fr          ──►  Netlify   (vitrine, inchangé)
-app.etonnament.fr      ──►  Scaleway  (app + PocketBase)
+etonnamment.fr          ──►  Netlify   (vitrine, inchangé)
+app.etonnamment.fr      ──►  Scaleway  (app + PocketBase)
 ```
 
 Trois bénéfices, dans l'ordre d'importance :
@@ -24,15 +24,15 @@ Trois bénéfices, dans l'ordre d'importance :
    tomber à 20h30 : la vitrine ne s'en aperçoit pas. Et inversement.
 3. **Pas de CORS.** Les trois surfaces et l'API partagent une seule origine.
 
-Bonus : le QR code pointe sur `app.etonnament.fr`, plus court que
-`etonnament.fr/app` et sans chemin à mal saisir.
+Bonus : le QR code pointe sur `app.etonnamment.fr`, plus court que
+`etonnamment.fr/app` et sans chemin à mal saisir.
 
 ---
 
 ## Structure du dépôt
 
 ```
-etonnament/
+etonnamment/
 ├── site/                    ← vitrine, déployée sur Netlify (inchangé)
 │   ├── index.html
 │   └── assets/
@@ -63,17 +63,28 @@ chmod +x deploy-app.sh    # le bit exécutable ne survit pas au téléchargement
 ## URL visées
 
 ```
-https://etonnament.fr/                  vitrine          (Netlify)
-https://app.etonnament.fr/              participant      (Scaleway)
-https://app.etonnament.fr/projection    grand écran
-https://app.etonnament.fr/regie         facilitateur
-https://app.etonnament.fr/api/*         PocketBase
-https://app.etonnament.fr/_/            admin PocketBase
+https://etonnamment.fr/                      vitrine          (Netlify)
+https://app.etonnamment.fr/app/              participant      (Scaleway)
+https://app.etonnamment.fr/app/projection    grand écran
+https://app.etonnamment.fr/app/regie         facilitateur
+https://app.etonnamment.fr/api/*             PocketBase
+https://app.etonnamment.fr/_/                admin PocketBase
 ```
 
-Le `try_files` du Caddyfile fait que `/projection` sert `projection.html` :
+L'app vit sous `/app/` parce que la racine `/var/www/etonnamment` sert déjà une
+copie de la vitrine. `deploy-app.sh` pousse dans `/var/www/etonnamment/app/`
+avec `--delete` : cantonner l'app à son sous-dossier évite que la
+synchronisation n'efface la vitrine qui l'entoure.
+
+Le `try_files` du Caddyfile fait que `/app/projection` sert `projection.html` :
 URL propres, aucun routeur JS. L'écran d'accueil doit contenir un lien retour
-vers `etonnament.fr` (exigence §1.1 du brief).
+vers `etonnamment.fr` (exigence §1.1 du brief).
+
+> ⚠️ Ce `try_files` se termine par `/index.html` : **aucune URL ne renvoie 404**.
+> Un fichier absent ou mal orthographié sert la vitrine avec un `200`, y compris
+> pour une image (`Content-Type: text/html`). Le soir même, un écran de
+> projection qui affiche la page marketing veut dire « fichier non déployé »,
+> pas « erreur de code ».
 
 ---
 
@@ -100,7 +111,7 @@ Zone **fr-par-1** · Image **Ubuntu 24.04 LTS**.
 ## Phase 1 — Le sous-domaine en ligne
 
 Aucune bascule risquée ici : on ajoute un enregistrement DNS, on n'en modifie
-aucun. Si quelque chose échoue, `etonnament.fr` continue de tourner.
+aucun. Si quelque chose échoue, `etonnamment.fr` continue de tourner.
 
 ### 1. Créer l'instance
 
@@ -150,8 +161,8 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
   | tee /etc/apt/sources.list.d/caddy-stable.list
 apt update && apt install -y caddy
 
-mkdir -p /var/www/app
-chown -R deploy:deploy /var/www/app
+mkdir -p /var/www/etonnamment/app
+chown -R deploy:deploy /var/www/etonnamment
 ```
 
 ### 4. Déployer une première fois, par IP
@@ -179,8 +190,8 @@ Chez votre registrar, **sans toucher aux enregistrements existants** :
 Laissez les enregistrements Netlify de `@` et `www` exactement comme ils sont.
 
 ```bash
-dig +short app.etonnament.fr        # doit renvoyer votre IP
-dig +short etonnament.fr            # doit encore renvoyer Netlify
+dig +short app.etonnamment.fr        # doit renvoyer votre IP
+dig +short etonnamment.fr            # doit encore renvoyer Netlify
 ```
 
 Le TTL à 300 s garde la souplesse si vous changez d'instance plus tard.
@@ -196,7 +207,7 @@ sudo systemctl reload caddy
 sudo journalctl -u caddy -f
 ```
 
-Le certificat arrive en quelques secondes. `https://app.etonnament.fr` répond.
+Le certificat arrive en quelques secondes. `https://app.etonnamment.fr` répond.
 
 > L'ordre 5 → 6 n'est pas négociable : Let's Encrypt valide en se connectant au
 > domaine, donc le DNS doit pointer ici **avant** la demande de certificat.
@@ -233,7 +244,7 @@ Puis **décommentez les blocs `handle /api/*` et `handle /_/*`** du Caddyfile et
 PocketBase n'écoute que sur `127.0.0.1:8090` : il n'est jamais joignable
 directement. Caddy est la seule porte d'entrée et gère le TLS en un seul point.
 
-Créez le compte admin à la première visite de `https://app.etonnament.fr/_/`.
+Créez le compte admin à la première visite de `https://app.etonnamment.fr/_/`.
 Mot de passe long et unique — cette URL est publique.
 
 ### Sauvegarde de `pb_data`
