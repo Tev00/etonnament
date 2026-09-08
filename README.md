@@ -101,6 +101,12 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
 - [ ] Confirmer le durcissement de l'instance (SSH, pare-feu, mises à jour) —
       la machine tourne et sert en HTTPS, mais rien ici n'atteste du reste ;
       voir `docs/SCALEWAY-SETUP.md`
+- [ ] **Fermer l'écriture de `island` par le participant.** Vérifié le
+      8 septembre : n'importe qui peut s'attribuer l'îlot de son choix, ce que
+      le §5 interdit. Dans l'ordre : `./deploy-hooks.sh` d'abord (le hook écrit
+      désormais `entry_done` côté serveur), puis dans l'admin, update de
+      `participants` → `@request.auth.collectionName = "facilitators"`.
+      L'ordre compte : inversé, `participant_count` cesse de compter.
 - [ ] Test de bout en bout des étapes 5 et 6 — jamais exercées avec de vrais
       participants et les drapeaux ouverts
 - [ ] **Répétition générale avec de vrais téléphones** — spec §9, non
@@ -114,6 +120,18 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
 ./check.sh                                   # ESLint, ~1 s, lancé par deploy-app.sh
 REGIE_EMAIL=… REGIE_PASSWORD=… ./smoke.sh    # navigateur réel, ~10 s
 ```
+
+```bash
+N=10 ./rehearsal.sh                          # 10 participants émulés
+```
+
+`rehearsal.sh` sert à répéter quand on est seul : N participants dans des
+navigateurs sans interface, qui **suivent votre régie**. Vous gardez la
+console sur votre téléphone et ouvrez les phases une à une ; ils répondent,
+reçoivent un îlot, écrivent des propositions, votent, remplissent la clôture.
+Ctrl-C affiche un compte-rendu. Il **écrit de vraies données** et les
+participants créés ne sont pas supprimables par l'API : prévoyez de vider les
+collections depuis l'admin avant la vraie soirée.
 
 `smoke.sh` clique sur tous les boutons de la régie et exige de chacun qu'il
 parte réellement écrire — ce qu'un linter ne peut pas voir. Il **écrit dans la
