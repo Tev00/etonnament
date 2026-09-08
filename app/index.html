@@ -50,10 +50,49 @@
     .nav button { padding: 8px 14px; font-size: 15px; }
     #prev[hidden] { display: none; }
     .saved { font-size: 14px; }
+
+    /* ---- îlot ---- */
+    .island-badge {
+      position: fixed;
+      right: 14px; bottom: 14px;
+      z-index: 40;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.16);
+    }
+    .island-badge strong { font-size: 18px; margin-left: 4px; }
+    .island-badge[hidden] { display: none; }
+
+    .island-big {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(96px, 40vw, 220px);
+      line-height: 1;
+      color: var(--accent);
+      margin: 8px 0 16px;
+    }
+    .consigne {
+      font-size: clamp(19px, 4.4vw, 26px);
+      line-height: 1.35;
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
+      margin: 18px 0 24px;
+    }
   </style>
 </head>
 <body>
   <div class="conn" id="conn"></div>
+
+  <!-- Exigence §1.4 : le numéro d'îlot reste accessible depuis TOUS les
+       écrans, pas seulement pendant la phase « îlots ». Quelqu'un qui revient
+       des toilettes à 20h30 doit le retrouver sans naviguer. -->
+  <button class="island-badge" id="islandBadge" hidden type="button">
+    Îlot <strong id="islandBadgeN"></strong>
+  </button>
 
   <main class="wrap">
     <img class="logo" src="assets/Main_Logo.png" alt="Étonnamment d'accord" />
@@ -91,12 +130,14 @@
 
     <section class="panel" data-stage="consigne">
       <h1>Trouvez quelqu'un qui…</h1>
-      <p class="muted">Votre consigne de rencontre s'affichera ici.</p>
+      <p id="consigne" class="consigne"></p>
+      <p class="muted">Puis rejoignez votre îlot.</p>
     </section>
 
     <section class="panel" data-stage="ilots">
-      <h1>Votre îlot</h1>
-      <p class="muted">Le numéro de votre îlot s'affichera ici.</p>
+      <p class="step muted">Votre îlot</p>
+      <div class="island-big" id="islandBig">—</div>
+      <p class="muted" id="islandHint">Rejoignez la table qui porte ce numéro.</p>
     </section>
 
     <section class="panel" data-stage="propositions">
@@ -147,6 +188,15 @@
       document.querySelectorAll('[data-when-closed]').forEach(function (el) {
         el.hidden = s[el.dataset.whenClosed] === true;
       });
+
+      // La régie peut déplacer quelqu'un d'îlot à la main : à chaque
+      // changement de session on relit sa fiche, pour que le numéro affiché
+      // sur le téléphone suive sans qu'on ait à recharger.
+      if (App.participant) {
+        App.refreshParticipant()
+          .then(function (me) { if (me) setIsland(me.island); })
+          .catch(function () { /* on garde le dernier numéro connu */ });
+      }
     });
 
     /* ---- Mission d'entrée -------------------------------------------------
@@ -220,11 +270,59 @@
     }
 
     function finish() {
-      // entry_done marque la fin du parcours ; c'est aussi ce qui déclenchera
-      // l'affectation d'îlot à l'étape 4.
       App.pb.collection('participants')
         .update(App.participant.id, { entry_done: true })
         .catch(function (e) { console.warn('entry_done non enregistré', e); });
+
+      // L'affectation est calculée par le serveur, dans une transaction : deux
+      // personnes qui terminent en même temps ne peuvent pas déséquilibrer les
+      // îlots (spec §5). Idempotent, donc sans risque à réessayer.
+      App.assignIsland()
+        .then(function (r) { setIsland(r.island); })
+        .catch(function (e) { console.warn('îlot non attribué', e); });
+    }
+
+    /* ---- Îlot ------------------------------------------------------------ */
+    var islandBadge = document.getElementById('islandBadge');
+    var islandBadgeN = document.getElementById('islandBadgeN');
+    var islandBig = document.getElementById('islandBig');
+    var consigneEl = document.getElementById('consigne');
+    var myIsland = 0;
+
+    function setIsland(n) {
+      myIsland = n || 0;
+      islandBadge.hidden = !(myIsland > 0);
+      islandBadgeN.textContent = myIsland || '';
+      islandBig.textContent = myIsland || '—';
+    }
+
+    // Appuyer sur la pastille amène à l'écran d'îlot en grand.
+    islandBadge.addEventListener('click', function () {
+      panels.forEach(function (p) {
+        p.classList.toggle('is-active', p.dataset.stage === 'ilots');
+      });
+    });
+
+    /* La consigne de rencontre est calculée côté client, sans rien stocker :
+     * on tire Q2 ou Q6 et on affiche la réponse donnée (spec §6.2). */
+    function renderConsigne() {
+      var pool = CONSIGNE_QUESTIONS.filter(function (k) { return answers[k]; });
+      if (!pool.length) {
+        consigneEl.textContent = '…a répondu autrement que vous.';
+        return;
+      }
+      var key = pool[Math.floor(Math.random() * pool.length)];
+      var q = questionByKey(key);
+      var chosen = q.options.filter(function (o) { return o.key === answers[key]; })[0];
+      consigneEl.textContent = '…a répondu « ' + (chosen ? chosen.label : '?') +
+        ' » comme vous à : ' + q.text;
+    }
+
+    function questionByKey(key) {
+      for (var i = 0; i < QUESTIONS.length; i++) {
+        if (QUESTIONS[i].key === key) return QUESTIONS[i];
+      }
+      return null;
     }
 
     prevBtn.addEventListener('click', function () {
@@ -232,13 +330,25 @@
     });
 
     App.ensureParticipant()
-      .then(function () { return App.loadAnswers(); })
+      .then(function (me) {
+        setIsland(me.island);
+        return App.loadAnswers();
+      })
       .then(function (existing) {
         answers = existing;
         index = firstUnanswered();
         ready = true;
         renderMission();
+        renderConsigne();
         App.flushQueue();
+
+        // Déjà arrivé au bout lors d'une visite précédente mais sans îlot
+        // (mission finie hors ligne, ou hook indisponible) : on rattrape.
+        if (index >= QUESTIONS.length && !myIsland) {
+          App.assignIsland()
+            .then(function (r) { setIsland(r.island); })
+            .catch(function () { /* la régie peut toujours affecter à la main */ });
+        }
       })
       .catch(function (err) {
         console.error('identité impossible', err);

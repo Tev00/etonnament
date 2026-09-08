@@ -43,6 +43,26 @@
       margin-bottom: 16px;
     }
     .note { font-size: 14px; color: var(--ink-muted); }
+
+    .roster { display: grid; gap: 6px; }
+    .isl {
+      display: grid;
+      grid-template-columns: 5.5em 3em 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+    }
+    .isl-n { font-weight: 600; }
+    .isl-count { font-variant-numeric: tabular-nums; }
+    .isl-members { display: flex; flex-wrap: wrap; gap: 4px; }
+    .isl-members button {
+      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: 999px;
+    }
+    .unassigned { color: var(--warn); }
   </style>
 </head>
 <body>
@@ -83,6 +103,11 @@
         <input type="number" id="islands" min="1" max="30" style="width:5em" />
       </label>
       <button id="saveIslands">Enregistrer</button>
+
+      <p class="note" style="margin-top:14px">
+        Remplissage — <button id="refreshRoster" type="button">Rafraîchir</button>
+      </p>
+      <div id="roster" class="roster"></div>
     </fieldset>
 
     <p class="note">
@@ -183,6 +208,82 @@
       App.patchSession({ islands_count: n }).catch(fail);
     });
 
+    /* --- Remplissage des îlots et réaffectation manuelle -------------------
+     * Réaffecter, c'est un simple update du champ `island` (spec §5). On
+     * n'affiche que le suffixe du username : la régie a besoin de distinguer
+     * deux personnes, pas de les identifier. */
+    var rosterEl = document.getElementById('roster');
+
+    function shortName(u) {
+      return u.length > 8 ? u.slice(-4) : u;
+    }
+
+    function loadRoster() {
+      var count = App.session ? App.session.islands_count : 10;
+      return App.pb.collection('participants')
+        .getFullList({ sort: 'created', requestKey: null })
+        .then(function (rows) {
+          var byIsland = {};
+          for (var i = 0; i <= count; i++) byIsland[i] = [];
+          rows.forEach(function (r) {
+            var isl = r.island || 0;
+            if (!byIsland[isl]) byIsland[isl] = [];
+            byIsland[isl].push(r);
+          });
+
+          rosterEl.textContent = '';
+          Object.keys(byIsland).map(Number).sort(function (a, b) { return a - b; })
+            .forEach(function (isl) {
+              var members = byIsland[isl];
+              if (isl === 0 && !members.length) return;
+
+              var row = document.createElement('div');
+              row.className = 'isl';
+
+              var n = document.createElement('span');
+              n.className = 'isl-n' + (isl === 0 ? ' unassigned' : '');
+              n.textContent = isl === 0 ? 'sans îlot' : 'îlot ' + isl;
+
+              var c = document.createElement('span');
+              c.className = 'isl-count';
+              c.textContent = members.length;
+
+              var list = document.createElement('div');
+              list.className = 'isl-members';
+              members.forEach(function (m) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = shortName(m.username);
+                b.title = 'Déplacer ' + m.username;
+                b.addEventListener('click', function () {
+                  var target = prompt('Déplacer ' + m.username + ' vers quel îlot ? (0 = aucun)', m.island || '');
+                  if (target === null) return;
+                  var num = parseInt(target, 10);
+                  if (isNaN(num) || num < 0) return fail('numéro d’îlot invalide');
+                  ok();
+                  App.pb.collection('participants').update(m.id, { island: num })
+                    .then(loadRoster)
+                    .catch(fail);
+                });
+                list.appendChild(b);
+              });
+
+              row.appendChild(n); row.appendChild(c); row.appendChild(list);
+              rosterEl.appendChild(row);
+            });
+        })
+        .catch(fail);
+    }
+
+    document.getElementById('refreshRoster').addEventListener('click', function () {
+      ok(); loadRoster();
+    });
+
+    // Une arrivée = un participant créé : on suit la collection source.
+    App.pb.collection('participants').subscribe('*', function () {
+      loadRoster();
+    }).catch(function (e) { console.warn('abonnement participants refusé', e); });
+
     App.onStatus(function (status) {
       conn.dataset.status = status;
       conn.textContent = status === 'offline'
@@ -216,6 +317,8 @@
 
       // Ne pas écraser ce que le facilitateur est en train de taper.
       if (document.activeElement !== islandsEl) islandsEl.value = s.islands_count;
+
+      if (!rosterEl.childElementCount) loadRoster();
     });
 
     App.start();

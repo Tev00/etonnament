@@ -328,6 +328,24 @@
 
     get participant() { return pb.authStore.model; },
 
+    /** Demande l'affectation d'un îlot. Idempotent côté serveur : rappeler
+     *  renvoie le même numéro sans rebattre les cartes. Résout { island }. */
+    assignIsland: function () {
+      return pb.send('/api/assign-island', { method: 'POST' });
+    },
+
+    /** Relit le participant courant (l'îlot peut avoir été changé par la
+     *  régie) et met à jour l'authStore. */
+    refreshParticipant: function () {
+      var me = pb.authStore.model;
+      if (!me) return Promise.resolve(null);
+      return pb.collection('participants').getOne(me.id, { requestKey: null })
+        .then(function (rec) {
+          pb.authStore.save(pb.authStore.token, rec);
+          return rec;
+        });
+    },
+
     /** Charge les réponses déjà données, pour reprendre où on s'était arrêté. */
     loadAnswers: function () {
       var pid = pb.authStore.model && pb.authStore.model.id;
