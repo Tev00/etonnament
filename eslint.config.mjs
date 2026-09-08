@@ -26,7 +26,8 @@ const browser = {
   PocketBase: 'readonly',
   App: 'readonly',
   QUESTIONS: 'readonly',
-  CONSIGNE_QUESTIONS: 'readonly'
+  CONSIGNE_QUESTIONS: 'readonly',
+  FEEDBACK: 'readonly'
 };
 
 export default [

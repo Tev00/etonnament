@@ -151,6 +151,28 @@
       border-style: dashed;
     }
     .vote-note { margin-top: 14px; font-size: 14px; }
+
+    /* ---- Clôture ----
+       Les cinq questions tiennent sur un écran. À 21h15 les gens ont leur
+       manteau sur le bras : un questionnaire qui défile ne se finit pas. */
+    .fq { margin: 0 0 22px; }
+    .fq-text { font-size: 16px; margin-bottom: 8px; }
+    .fq-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fq-options button { padding: 9px 14px; }
+    .fq textarea {
+      width: 100%;
+      font: inherit;
+      min-height: 76px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      resize: vertical;
+    }
+    .fq textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .fq .count { font-size: 13px; color: var(--ink-muted); }
+    #fbSend { margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -258,6 +280,21 @@
     <section class="panel" data-stage="cloture">
       <h1>Avant de partir</h1>
       <p class="closed" data-when-closed="feedback_open">Le questionnaire n'est pas encore ouvert.</p>
+
+      <div id="fbWrap" hidden>
+        <p class="muted">Cinq questions, une minute. Vos réponses restent anonymes.</p>
+        <div id="fbQuestions"></div>
+        <button id="fbSend" type="button">Envoyer</button>
+        <p class="saved muted" id="fbState"></p>
+      </div>
+
+      <div id="fbDone" hidden>
+        <h2>Merci</h2>
+        <p class="muted">
+          C'est envoyé. Bonne soirée — et à bientôt sur
+          <a href="https://etonnamment.fr">etonnamment.fr</a>.
+        </p>
+      </div>
     </section>
   </main>
 
@@ -304,6 +341,7 @@
               loadProps().then(watchProps);
             }
             if (s.vote_open && !voteLoaded) loadVote().then(watchVote);
+            if (s.feedback_open) openFeedback();
           })
           .catch(function () { /* on garde le dernier numéro connu */ });
       }
@@ -726,6 +764,113 @@
       App.pb.collection('statements').subscribe('*', function () {
         loadVote();
       }).catch(function (e) { console.warn('abonnement énoncés refusé', e); });
+    }
+
+    /* ---- Clôture ----------------------------------------------------------
+     * Cinq questions sur un seul écran (spec §1.6, annexe B). Un seul
+     * enregistrement par participant, `answers` en json.
+     *
+     * Deux filets plutôt qu'un : chaque réponse part dès qu'elle est donnée,
+     * ET le bouton « Envoyer » renvoie l'objet complet. Quelqu'un qui répond à
+     * trois questions puis s'en va laisse donc trois réponses en base plutôt
+     * que rien — c'est le même choix qu'à la mission d'entrée, et à 21h15 il
+     * compte davantage : une partie de la salle est déjà debout. */
+    var fbWrap = document.getElementById('fbWrap');
+    var fbDone = document.getElementById('fbDone');
+    var fbQuestions = document.getElementById('fbQuestions');
+    var fbSend = document.getElementById('fbSend');
+    var fbState = document.getElementById('fbState');
+
+    var fbAnswers = {};
+    var fbBuilt = false;
+    var fbTimer = null;
+
+    function fbSave(immediate) {
+      if (fbTimer) { clearTimeout(fbTimer); fbTimer = null; }
+      var go = function () {
+        fbState.textContent = 'enregistrement…';
+        return App.saveFeedback(fbAnswers).then(function () {
+          fbState.textContent = App.pendingWrites
+            ? 'en attente de réseau — ne fermez pas cette page'
+            : 'enregistré';
+        });
+      };
+      if (immediate) return go();
+      // Le texte libre s'écrit lettre par lettre : on attend une pause.
+      fbTimer = setTimeout(go, 800);
+      return Promise.resolve();
+    }
+
+    function buildFeedback() {
+      if (fbBuilt) return;
+      fbBuilt = true;
+
+      FEEDBACK.forEach(function (q) {
+        var box = document.createElement('div');
+        box.className = 'fq';
+
+        var text = document.createElement('div');
+        text.className = 'fq-text';
+        text.textContent = q.text;
+        box.appendChild(text);
+
+        if (q.type === 'text') {
+          var ta = document.createElement('textarea');
+          ta.maxLength = q.max || 400;
+          ta.placeholder = q.placeholder || '';
+          var count = document.createElement('div');
+          count.className = 'count';
+          ta.addEventListener('input', function () {
+            fbAnswers[q.key] = ta.value;
+            count.textContent = ta.value.length + ' / ' + ta.maxLength;
+            fbSave(false);
+          });
+          box.appendChild(ta);
+          box.appendChild(count);
+        } else {
+          var opts = document.createElement('div');
+          opts.className = 'fq-options';
+          q.options.forEach(function (o) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = o.label;
+            b.setAttribute('aria-pressed', 'false');
+            b.addEventListener('click', function () {
+              fbAnswers[q.key] = o.key;
+              Array.prototype.forEach.call(opts.children, function (el) {
+                el.setAttribute('aria-pressed', el === b ? 'true' : 'false');
+              });
+              fbSave(true);
+            });
+            opts.appendChild(b);
+          });
+          box.appendChild(opts);
+        }
+
+        fbQuestions.appendChild(box);
+      });
+    }
+
+    fbSend.addEventListener('click', function () {
+      fbSend.disabled = true;
+      fbSave(true).then(function () {
+        fbWrap.hidden = true;
+        fbDone.hidden = false;
+      });
+    });
+
+    function openFeedback() {
+      buildFeedback();
+      // Déjà envoyé depuis ce navigateur : on ne redemande pas. Le
+      // participant ne peut pas relire sa réponse (règle réservée à la régie),
+      // donc on ne peut ni la pré-remplir ni la corriger après coup.
+      if (App.feedbackSent) {
+        fbWrap.hidden = true;
+        fbDone.hidden = false;
+        return;
+      }
+      fbWrap.hidden = false;
+      fbDone.hidden = true;
     }
 
     App.start();

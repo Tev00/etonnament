@@ -187,6 +187,19 @@
     </fieldset>
 
     <fieldset>
+      <legend>Clôture</legend>
+      <p class="note">
+        Combien de questionnaires sont rentrés. Sert à décider quand fermer,
+        pas à lire les réponses&nbsp;: le texte libre se lit après la soirée,
+        dans l'admin PocketBase.
+      </p>
+      <p class="note">
+        <button id="refreshFb" type="button">Rafraîchir</button>
+        <span id="fbStats"></span>
+      </p>
+    </fieldset>
+
+    <fieldset>
       <legend>Îlots</legend>
       <label>Nombre d'îlots actifs
         <input type="number" id="islands" min="1" max="30" style="width:5em" />
@@ -320,6 +333,28 @@
       ok();
       patch({ projection_page: 0 }).catch(fail);
     });
+
+    /* Compteur des questionnaires de clôture. `feedback` n'est lisible que par
+     * la régie (spec §4), donc ce chiffre n'existe nulle part ailleurs. On ne
+     * s'abonne pas : à 21h15 un rafraîchissement manuel suffit, et une
+     * requête de moins sur le wifi de la salle est une requête de moins. */
+    var fbStats = document.getElementById('fbStats');
+
+    function loadFeedbackCount() {
+      return R().collection('feedback')
+        .getList(1, 1, { requestKey: null })
+        .then(function (res) {
+          fbStats.textContent = res.totalItems + ' questionnaire'
+            + (res.totalItems > 1 ? 's' : '') + ' reçu'
+            + (res.totalItems > 1 ? 's' : '');
+        })
+        .catch(function (e) {
+          fbStats.textContent = 'illisible';
+          console.warn('feedback illisible', e);
+        });
+    }
+    document.getElementById('refreshFb')
+      .addEventListener('click', loadFeedbackCount);
 
     document.getElementById('saveIslands').addEventListener('click', function () {
       ok();
@@ -556,6 +591,7 @@
 
       if (!rosterEl.childElementCount) loadRoster();
       if (!propListEl.childElementCount) loadProps();
+      if (!fbStats.textContent) loadFeedbackCount();
     });
 
     /* ---- Connexion --------------------------------------------------------

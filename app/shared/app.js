@@ -264,13 +264,19 @@
   // Deux entrées de même clé sont le même avis changé d'idée : la seconde
   // remplace la première, et la file ne grossit pas hors ligne.
   function queueKey(item) {
-    return item.kind === 'vote' ? 'vote:' + item.statement : 'answer:' + item.question;
+    if (item.kind === 'vote') return 'vote:' + item.statement;
+    // Un seul enregistrement de feedback par participant : une seule clé, donc
+    // la file n'en garde jamais qu'une version, la plus récente.
+    if (item.kind === 'feedback') return 'feedback';
+    return 'answer:' + item.question;
   }
 
   function sameEntry(a, b) {
     a = normalize(a); b = normalize(b);
     if (queueKey(a) !== queueKey(b)) return false;
-    return a.kind === 'vote' ? a.value === b.value : a.choice === b.choice;
+    if (a.kind === 'vote') return a.value === b.value;
+    if (a.kind === 'feedback') return JSON.stringify(a.answers) === JSON.stringify(b.answers);
+    return a.choice === b.choice;
   }
 
   function enqueue(item) {
@@ -315,11 +321,56 @@
       .then(function (rec) { voteIds[statement] = rec.id; return rec; });
   }
 
+  /* Un seul enregistrement par participant, `answers` en json (spec §1.6) :
+   * pas d'agrégat temps réel à faire, et le texte libre se prête mal à des
+   * lignes. On écrit donc l'objet entier à chaque fois. */
+  /* L'id est gardé en localStorage, pas seulement en mémoire. La règle de
+   * lecture de `feedback` est réservée à la régie (spec §4) : le participant
+   * ne peut pas retrouver son propre enregistrement en interrogeant l'API. Si
+   * l'id ne survivait pas au rechargement, quelqu'un qui recharge la page
+   * enverrait un SECOND enregistrement, et le §1.6 en veut un seul par
+   * personne. Même fragilité que l'identité elle-même, et acceptée pour les
+   * mêmes raisons (spec §7). */
+  var FEEDBACK_KEY = 'etonnamment.feedback';
+
+  function readFeedbackId() {
+    try { return global.localStorage.getItem(FEEDBACK_KEY); }
+    catch (e) { return null; }
+  }
+
+  function writeFeedbackId(id) {
+    try { global.localStorage.setItem(FEEDBACK_KEY, id); }
+    catch (e) { console.warn('localStorage indisponible', e); }
+  }
+
+  function pushFeedback(answers) {
+    var pid = pb.authStore.model && pb.authStore.model.id;
+    if (!pid) return Promise.reject(new Error('participant non authentifié'));
+
+    var existing = readFeedbackId();
+    if (existing) {
+      return pb.collection('feedback').update(existing, { answers: answers })
+        .catch(function (err) {
+          // Enregistrement disparu (base réinitialisée entre deux
+          // répétitions) : on repart sur une création plutôt que de perdre
+          // la réponse.
+          if (err && err.status === 404) {
+            writeFeedbackId('');
+            return pushFeedback(answers);
+          }
+          throw err;
+        });
+    }
+    return pb.collection('feedback')
+      .create({ participant: pid, answers: answers })
+      .then(function (rec) { writeFeedbackId(rec.id); return rec; });
+  }
+
   function sendQueued(item) {
     item = normalize(item);
-    return item.kind === 'vote'
-      ? pushVote(item.statement, item.value)
-      : pushAnswer(item.question, item.choice);
+    if (item.kind === 'vote') return pushVote(item.statement, item.value);
+    if (item.kind === 'feedback') return pushFeedback(item.answers);
+    return pushAnswer(item.question, item.choice);
   }
 
   /** Rejoue la file. Silencieux : appelé souvent, échoue souvent, sans bruit. */
@@ -508,6 +559,21 @@
       return pushVote(statement, value).catch(function (err) {
         console.warn('vote mis en file', err);
         enqueue({ kind: 'vote', statement: statement, value: value });
+      });
+    },
+
+    /* ---- Clôture (spec §1.6) --------------------------------------------- */
+
+    /** Vrai si ce navigateur a déjà envoyé le questionnaire. Le participant ne
+     *  peut pas relire son enregistrement — la règle de lecture est réservée
+     *  à la régie — donc c'est tout ce qu'on peut savoir de son côté. */
+    get feedbackSent() { return !!readFeedbackId(); },
+
+    /** Enregistre le questionnaire de clôture. Ne rejette jamais. */
+    saveFeedback: function (answers) {
+      return pushFeedback(answers).catch(function (err) {
+        console.warn('feedback mis en file', err);
+        enqueue({ kind: 'feedback', answers: answers });
       });
     },
 
