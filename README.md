@@ -95,8 +95,6 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
       le bouton correspondant de la régie renvoie 400 (le test de fumée
       échoue là-dessus, exprès)
 - [ ] Écran « programme » sur la projection, une fois la valeur acceptée
-- [ ] Valider les libellés du questionnaire de clôture (annexe B) —
-      ceux de `questions.js` sont une proposition
 - [ ] Audit des règles d'API restantes contre le tableau du §4 —
       `propositions` et `session` sont faits, les autres non
 - [ ] Deuxième compte facilitateur (spec §1.8 : deux, pas un)
