@@ -282,7 +282,10 @@
       <p class="closed" data-when-closed="feedback_open">Le questionnaire n'est pas encore ouvert.</p>
 
       <div id="fbWrap" hidden>
-        <p class="muted">Cinq questions, une minute. Vos réponses restent anonymes.</p>
+        <p class="muted">
+          Quatre questions, deux minutes. Répondez à ce que vous voulez —
+          rien n'est obligatoire. Vos réponses restent anonymes.
+        </p>
         <div id="fbQuestions"></div>
         <button id="fbSend" type="button">Envoyer</button>
         <p class="saved muted" id="fbState"></p>
@@ -326,6 +329,20 @@
         el.hidden = s[el.dataset.whenClosed] === true;
       });
 
+      /* Ce qui NE dépend pas de l'îlot est traité ici, en dehors de la
+       * relecture de la fiche participant. Ces deux ouvertures y étaient
+       * imbriquées : elles n'arrivaient donc que si `refreshParticipant()`
+       * aboutissait, et son `.catch` avale les erreurs en silence. Un
+       * hoquet de réseau à 21h15 et le questionnaire de clôture ne
+       * s'affichait plus du tout, jusqu'au prochain changement de session —
+       * que la régie peut mettre vingt minutes à provoquer. */
+      if (s.vote_open && !voteLoaded && App.participant) {
+        loadVote().then(watchVote);
+      }
+      // On construit le questionnaire même sans compte : mieux vaut des
+      // questions à l'écran qu'un panneau vide. L'envoi, lui, exige le compte.
+      if (s.feedback_open) openFeedback();
+
       // La régie peut déplacer quelqu'un d'îlot à la main : à chaque
       // changement de session on relit sa fiche, pour que le numéro affiché
       // sur le téléphone suive sans qu'on ait à recharger.
@@ -340,8 +357,6 @@
               propsWrap.hidden = false;
               loadProps().then(watchProps);
             }
-            if (s.vote_open && !voteLoaded) loadVote().then(watchVote);
-            if (s.feedback_open) openFeedback();
           })
           .catch(function () { /* on garde le dernier numéro connu */ });
       }
@@ -767,8 +782,8 @@
     }
 
     /* ---- Clôture ----------------------------------------------------------
-     * Cinq questions sur un seul écran (spec §1.6, annexe B). Un seul
-     * enregistrement par participant, `answers` en json.
+     * Les questions de l'annexe B sur un seul écran. Un seul enregistrement
+     * par participant, `answers` en json.
      *
      * Deux filets plutôt qu'un : chaque réponse part dès qu'elle est donnée,
      * ET le bouton « Envoyer » renvoie l'objet complet. Quelqu'un qui répond à

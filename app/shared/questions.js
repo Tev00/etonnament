@@ -1,16 +1,16 @@
-/* Étonnamment d'accord — annexe A : mission d'entrée.
+/* Étonnamment d'accord — annexe A : mission d'entrée.
  *
- * Les libellés vivent ici et NON en base : la base ne stocke que des clés
+ * Les libellés vivent ici et NON en base : la base ne stocke que des clés
  * (`q4_c2`), ce qui permet de corriger une faute de frappe le soir même sans
  * toucher aux réponses déjà enregistrées (spec §1.2).
  *
- * Ne jamais réutiliser ni renuméroter une clé après le début de l'événement :
+ * Ne jamais réutiliser ni renuméroter une clé après le début de l'événement :
  * les réponses déjà en base pointeraient sur un autre libellé.
  */
 window.QUESTIONS = [
   {
     key: 'q1',
-    text: 'Dans les douze derniers mois, vous est-il arrivé d’éviter un sujet politique avec un proche pour ne pas créer de tension ?',
+    text: 'Dans les douze derniers mois, vous est-il arrivé d’éviter un sujet politique avec un proche pour ne pas créer de tension ?',
     options: [
       { key: 'q1_c1', label: 'Souvent' },
       { key: 'q1_c2', label: 'Une fois ou deux' },
@@ -19,7 +19,7 @@ window.QUESTIONS = [
   },
   {
     key: 'q2',
-    text: 'Vous est-il déjà arrivé de changer d’avis sur un sujet politique important à la suite d’une conversation ?',
+    text: 'Vous est-il déjà arrivé de changer d’avis sur un sujet politique important à la suite d’une conversation ?',
     options: [
       { key: 'q2_c1', label: 'Oui' },
       { key: 'q2_c2', label: 'Non' },
@@ -28,7 +28,7 @@ window.QUESTIONS = [
   },
   {
     key: 'q3',
-    text: 'Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par crainte de la réaction ?',
+    text: 'Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par crainte de la réaction ?',
     options: [
       { key: 'q3_c1', label: 'Oui' },
       { key: 'q3_c2', label: 'Non' }
@@ -37,7 +37,7 @@ window.QUESTIONS = [
   {
     // Q4 et Q6 alimentent l'algorithme d'affectation des îlots (spec §5).
     key: 'q4',
-    text: 'Quand vous entendez le mot « débat », qu’est-ce qui vous vient en premier ?',
+    text: 'Quand vous entendez le mot « débat », qu’est-ce qui vous vient en premier ?',
     options: [
       { key: 'q4_c1', label: 'Un affrontement' },
       { key: 'q4_c2', label: 'Un échange utile' },
@@ -47,7 +47,7 @@ window.QUESTIONS = [
   },
   {
     key: 'q5',
-    text: 'Avez-vous le sentiment que votre voix compte dans les décisions politiques ?',
+    text: 'Avez-vous le sentiment que votre voix compte dans les décisions politiques ?',
     options: [
       { key: 'q5_c1', label: 'Oui' },
       { key: 'q5_c2', label: 'Plutôt non' },
@@ -56,7 +56,7 @@ window.QUESTIONS = [
   },
   {
     key: 'q6',
-    text: 'Connaissez-vous personnellement quelqu’un dont les convictions politiques sont très éloignées des vôtres, et avec qui vous discutez régulièrement ?',
+    text: 'Connaissez-vous personnellement quelqu’un dont les convictions politiques sont très éloignées des vôtres, et avec qui vous discutez régulièrement ?',
     options: [
       { key: 'q6_c1', label: 'Oui' },
       { key: 'q6_c2', label: 'Non' }
@@ -64,7 +64,7 @@ window.QUESTIONS = [
   },
   {
     key: 'q7',
-    text: 'Qu’est-ce qui vous a fait venir ce soir ?',
+    text: 'Qu’est-ce qui vous a fait venir ce soir ?',
     options: [
       { key: 'q7_c1', label: 'La méthode' },
       { key: 'q7_c2', label: 'Le sujet' },
@@ -74,72 +74,63 @@ window.QUESTIONS = [
   }
 ];
 
-/* Consigne de rencontre (spec §6.2) : on tire Q2 ou Q6 et on affiche la
+/* Consigne de rencontre (spec §6.2) : on tire Q2 ou Q6 et on affiche la
  * réponse donnée. Calculé côté client, rien n'est stocké. */
 window.CONSIGNE_QUESTIONS = ['q2', 'q6'];
 
 /* ---------------------------------------------------------------------------
- * Annexe B : questionnaire de clôture.
+ * Annexe B : questionnaire de clôture.
  *
- * ⚠️ LIBELLÉS À VALIDER. L'annexe B du déroulé n'existe pas encore dans le
- * dépôt : ces cinq questions sont une proposition, pas le texte arrêté.
- * Les remplacer ici suffit — rien n'est en base, et `feedback.answers` est un
- * json indexé par ces clés. En revanche, ne pas RENUMÉROTER les clés après le
- * début de la soirée : des réponses déjà envoyées pointeraient ailleurs.
+ * Libellés fournis par Paul le 8 septembre. Le §1.6 de la spec parlait de cinq
+ * questions « fermées + texte libre court » : ce sont finalement quatre
+ * questions, dont trois ouvertes. La spec est en retard sur le déroulé, pas
+ * l'inverse.
  *
- * F1 et F3 font écho à Q1 et Q3 de la mission d'entrée. C'est délibéré : les
- * poser deux fois, à l'arrivée et au départ, est le seul moyen de mesurer un
- * déplacement au cours de la soirée plutôt qu'un état à la fin.
+ * Comme pour l'annexe A, rien de tout cela n'est en base : `feedback.answers`
+ * est un json indexé par ces clés. On peut corriger une faute de frappe en
+ * pleine soirée. En revanche, ne pas RENUMÉROTER les clés une fois que des
+ * réponses sont arrivées.
  *
- * `type: 'text'` = réponse libre courte. Une seule, en dernier (spec §1.6) :
- * à 21h15 les gens partent, un questionnaire qui se lit d'un écran se remplit,
- * un questionnaire qui défile s'abandonne.
+ * Trois champs libres sur un téléphone à 21h15, c'est beaucoup de saisie. D'où
+ * trois choix de conception : aucune question n'est obligatoire, chaque réponse
+ * part dès qu'elle est écrite (celui qui répond à deux questions et s'en va en
+ * laisse deux), et les exemples en filigrane disent qu'une ligne suffit.
  */
 window.FEEDBACK = [
   {
     key: 'f1',
-    type: 'choice',
-    text: 'Ce soir, avez-vous entendu un point de vue qui vous a surpris ?',
-    options: [
-      { key: 'f1_c1', label: 'Oui, plusieurs' },
-      { key: 'f1_c2', label: 'Oui, un' },
-      { key: 'f1_c3', label: 'Non' }
-    ]
+    type: 'text',
+    text: 'Qu’est-ce qui a le mieux marché, selon vous ?',
+    placeholder: 'Une ligne suffit.',
+    max: 400
   },
   {
     key: 'f2',
-    type: 'choice',
-    text: 'Avez-vous parlé avec quelqu’un que vous n’auriez pas abordé ailleurs ?',
-    options: [
-      { key: 'f2_c1', label: 'Oui' },
-      { key: 'f2_c2', label: 'Non' }
-    ]
+    type: 'text',
+    text: 'Qu’est-ce qui a coincé ?',
+    placeholder: 'Même une petite chose.',
+    max: 400
   },
   {
+    /* Deux questions en une dans le déroulé — « revenir » ET « amener
+     * quelqu'un ». En choix fermé plutôt qu'en texte libre : c'est le seul
+     * chiffre de ce questionnaire, celui qu'on citera pour décider s'il y a
+     * une prochaine soirée. Les options gardent les deux idées distinctes. */
     key: 'f3',
     type: 'choice',
-    text: 'Avez-vous pu dire ce que vous pensiez, sans vous retenir ?',
+    text: 'Seriez-vous prêt·e à revenir, ou à amener quelqu’un ?',
     options: [
-      { key: 'f3_c1', label: 'Oui' },
-      { key: 'f3_c2', label: 'En partie' },
-      { key: 'f3_c3', label: 'Non' }
+      { key: 'f3_c1', label: 'Oui, et j’amènerais quelqu’un' },
+      { key: 'f3_c2', label: 'Oui, je reviendrais' },
+      { key: 'f3_c3', label: 'Peut-être' },
+      { key: 'f3_c4', label: 'Non' }
     ]
   },
   {
     key: 'f4',
-    type: 'choice',
-    text: 'Reviendriez-vous à une soirée de ce genre ?',
-    options: [
-      { key: 'f4_c1', label: 'Oui' },
-      { key: 'f4_c2', label: 'Peut-être' },
-      { key: 'f4_c3', label: 'Non' }
-    ]
-  },
-  {
-    key: 'f5',
     type: 'text',
-    text: 'Une phrase à nous laisser ?',
-    placeholder: 'Ce qui vous a marqué, ce qui a manqué…',
-    max: 400
+    text: 'Qu’est-ce que vous diriez à quelqu’un pour l’inviter au prochain débat ?',
+    placeholder: 'Vos mots à vous — ce sont les meilleurs pour inviter.',
+    max: 500
   }
 ];
