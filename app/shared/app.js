@@ -83,6 +83,8 @@
       fetchSession().then(function () {
         // Le réseau répond : c'est le moment de vider la file.
         flushQueue();
+        // …et de rattraper une vue dont l'abonnement se serait tu.
+        viewReloaders.forEach(function (reload) { reload(); });
       }).catch(function () {
         // Réseau coupé : on le signale, mais on garde `session` intact.
         setStatus('offline');
@@ -273,10 +275,54 @@
     }, Promise.resolve()).catch(function () { /* on retentera */ });
   }
 
+  /* ---------------------------------------------------------------------
+   * Vues agrégées
+   *
+   * Une collection « view » n'émet AUCUN événement temps réel : PocketBase
+   * émet à l'écriture d'un enregistrement, et personne n'écrit dans une vue
+   * (vérifié sur l'instance, voir spec §0). On s'abonne donc à la collection
+   * SOURCE et on relit la vue à chaque événement.
+   *
+   * Le débounce compte : à l'ouverture du vote, soixante personnes cliquent
+   * en même temps. Sans lui, un événement = une requête, et la projection
+   * repartirait en soixante relectures de la même vue.
+   * ------------------------------------------------------------------- */
+  var DEBOUNCE_MS = 400;
+  var viewReloaders = [];
+
+  function watchView(view, source, cb) {
+    var timer = null;
+
+    function reload() {
+      return pb.collection(view).getFullList({ requestKey: null })
+        .then(cb)
+        .catch(function (e) {
+          // On garde l'affichage précédent plutôt que de vider l'écran.
+          console.warn('relecture de ' + view + ' impossible', e);
+        });
+    }
+
+    function schedule() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { timer = null; reload(); }, DEBOUNCE_MS);
+    }
+
+    reload();
+    pb.collection(source).subscribe('*', schedule).catch(function (e) {
+      console.warn('abonnement à ' + source + ' refusé — repli sur le GET', e);
+    });
+
+    // Filet : même si l'abonnement meurt, le GET périodique rafraîchit la vue.
+    viewReloaders.push(reload);
+    return reload;
+  }
+
   global.App = {
     pb: pb,
     isDev: isDev,
     apiBase: API_BASE,
+
+    watchView: watchView,
 
     ensureParticipant: ensureParticipant,
 

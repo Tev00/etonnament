@@ -69,6 +69,15 @@
     </fieldset>
 
     <fieldset>
+      <legend>Projection — <code>projection_view</code></legend>
+      <div class="grid" id="pviews"></div>
+
+      <p class="note" style="margin-top:14px">Question projetée — <code>projection_question</code></p>
+      <div class="grid" id="pquestions"></div>
+      <p class="note" id="pqtext"></p>
+    </fieldset>
+
+    <fieldset>
       <legend>Îlots</legend>
       <label>Nombre d'îlots actifs
         <input type="number" id="islands" min="1" max="30" style="width:5em" />
@@ -83,6 +92,7 @@
   </main>
 
   <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/questions.js"></script>
   <script src="shared/app.js"></script>
   <script>
     var STAGES = ['accueil','mission','consigne','ilots','propositions','vote','resultats','cloture'];
@@ -138,6 +148,34 @@
       flagsEl.appendChild(row);
     });
 
+    // --- projection ---
+    var PVIEWS = ['idle', 'entry', 'vote', 'programme'];
+    var pviewsEl = document.getElementById('pviews');
+    var pquestionsEl = document.getElementById('pquestions');
+    var pqtext = document.getElementById('pqtext');
+
+    PVIEWS.forEach(function (name) {
+      var b = document.createElement('button');
+      b.textContent = name;
+      b.dataset.pview = name;
+      b.addEventListener('click', function () {
+        ok();
+        App.patchSession({ projection_view: name }).catch(fail);
+      });
+      pviewsEl.appendChild(b);
+    });
+
+    QUESTIONS.forEach(function (q) {
+      var b = document.createElement('button');
+      b.textContent = q.key;
+      b.dataset.pq = q.key;
+      b.addEventListener('click', function () {
+        ok();
+        App.patchSession({ projection_question: q.key }).catch(fail);
+      });
+      pquestionsEl.appendChild(b);
+    });
+
     document.getElementById('saveIslands').addEventListener('click', function () {
       ok();
       var n = parseInt(islandsEl.value, 10);
@@ -164,6 +202,17 @@
         b.setAttribute('aria-pressed', String(on));
         b.textContent = on ? 'ouvert' : 'fermé';
       });
+
+      pviewsEl.querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.pview === s.projection_view));
+      });
+      pquestionsEl.querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.pq === s.projection_question));
+      });
+
+      // Rappeler le libellé : « q4 » ne dit rien à 20h00 devant une salle.
+      var q = QUESTIONS.filter(function (x) { return x.key === s.projection_question; })[0];
+      pqtext.textContent = q ? q.text : '';
 
       // Ne pas écraser ce que le facilitateur est en train de taper.
       if (document.activeElement !== islandsEl) islandsEl.value = s.islands_count;

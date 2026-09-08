@@ -42,6 +42,49 @@
     }
     .sub { font-size: clamp(18px, 2.4vw, 34px); color: var(--ink-muted); margin-top: 3vh; }
 
+    /* ---- miroir de la mission d'entrée ---- */
+    #entryview { display: none; width: min(1500px, 92vw); }
+    #entryview.is-active { display: block; }
+    .stageview.is-hidden { display: none; }
+
+    .eq {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(26px, 3.6vw, 62px);
+      line-height: 1.12;
+      margin: 0 0 5vh;
+      text-align: left;
+    }
+    .bars { display: grid; gap: clamp(10px, 1.8vh, 26px); text-align: left; }
+    .bar-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 3vw;
+    }
+    .bar-label { font-size: clamp(16px, 1.9vw, 34px); margin-bottom: .5vh; }
+    .bar-track { height: clamp(14px, 2.4vh, 34px); background: #F1F1EF; border-radius: 999px; overflow: hidden; }
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      /* La barre s'anime : dans une salle, le mouvement dit « c'est en direct ». */
+      transition: width .6s cubic-bezier(.22,.61,.36,1);
+    }
+    .bar-n {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(24px, 3vw, 54px);
+      min-width: 2.5ch;
+      text-align: right;
+    }
+    .etotal {
+      margin-top: 5vh;
+      font-size: clamp(16px, 1.8vw, 30px);
+      color: var(--ink-muted);
+      text-align: left;
+    }
+
     /* Le bandeau de connexion ne doit jamais masquer le contenu projeté :
        sur grand écran il devient un simple liseré en bas. */
     .conn {
@@ -56,13 +99,21 @@
 <body>
   <div class="conn" id="conn"></div>
 
-  <div class="stageview">
+  <div class="stageview" id="stageview">
     <div class="kicker" id="kicker">Étonnamment d'accord</div>
     <h1 class="headline" id="headline">…</h1>
     <div class="sub" id="sub"></div>
   </div>
 
+  <div id="entryview">
+    <div class="kicker">Mission d'entrée</div>
+    <h2 class="eq" id="eq"></h2>
+    <div class="bars" id="bars"></div>
+    <div class="etotal" id="etotal"></div>
+  </div>
+
   <script src="shared/pocketbase.umd.js"></script>
+  <script src="shared/questions.js"></script>
   <script src="shared/app.js"></script>
   <script>
     // Étape 1 : la projection ne fait que refléter `stage`. Les agrégats
@@ -92,7 +143,96 @@
         : 'Connexion…';
     });
 
+    /* ---- Miroir de la mission d'entrée ------------------------------------
+     * `projection_view = "entry"` bascule sur les résultats ; la régie choisit
+     * la question avec `projection_question`. */
+    var stageview = document.getElementById('stageview');
+    var entryview = document.getElementById('entryview');
+    var eq = document.getElementById('eq');
+    var bars = document.getElementById('bars');
+    var etotal = document.getElementById('etotal');
+
+    var counts = {};        // "q1_c2" -> n
+    var currentQuestion = 'q1';
+    var participants = 0;
+
+    function questionByKey(key) {
+      for (var i = 0; i < QUESTIONS.length; i++) {
+        if (QUESTIONS[i].key === key) return QUESTIONS[i];
+      }
+      return null;
+    }
+
+    function renderEntry() {
+      var q = questionByKey(currentQuestion);
+      if (!q) return;
+
+      eq.textContent = q.text;
+
+      var total = 0;
+      q.options.forEach(function (o) { total += counts[o.key] || 0; });
+
+      // Les barres sont relatives à l'option la plus choisie, pas au total :
+      // sur une question à quatre options, tout resterait sinon écrasé en bas.
+      var max = 0;
+      q.options.forEach(function (o) { max = Math.max(max, counts[o.key] || 0); });
+
+      bars.textContent = '';
+      q.options.forEach(function (o) {
+        var n = counts[o.key] || 0;
+
+        var row = document.createElement('div');
+        row.className = 'bar-row';
+
+        var left = document.createElement('div');
+        var label = document.createElement('div');
+        label.className = 'bar-label';
+        label.textContent = o.label;
+        var track = document.createElement('div');
+        track.className = 'bar-track';
+        var fill = document.createElement('div');
+        fill.className = 'bar-fill';
+        fill.style.width = (max ? (n / max) * 100 : 0) + '%';
+        track.appendChild(fill);
+        left.appendChild(label);
+        left.appendChild(track);
+
+        var num = document.createElement('div');
+        num.className = 'bar-n';
+        num.textContent = n;
+
+        row.appendChild(left);
+        row.appendChild(num);
+        bars.appendChild(row);
+      });
+
+      // Effectifs absolus, exigés au §1.5 du brief : « 34 personnes sur 58 ».
+      etotal.textContent = participants
+        ? total + ' réponse' + (total > 1 ? 's' : '') + ' — ' + participants + ' participant' + (participants > 1 ? 's' : '')
+        : total + ' réponse' + (total > 1 ? 's' : '');
+    }
+
+    App.watchView('entry_results', 'entry_answers', function (rows) {
+      counts = {};
+      rows.forEach(function (r) { counts[r.choice] = r.n; });
+      renderEntry();
+    });
+
+    App.watchView('participant_count', 'participants', function (rows) {
+      participants = rows.length ? rows[0].n : 0;
+      renderEntry();
+    });
+
     App.onSession(function (s) {
+      var showEntry = s.projection_view === 'entry';
+      entryview.classList.toggle('is-active', showEntry);
+      stageview.classList.toggle('is-hidden', showEntry);
+
+      if (s.projection_question && s.projection_question !== currentQuestion) {
+        currentQuestion = s.projection_question;
+      }
+      if (showEntry) renderEntry();
+
       var v = VUES[s.stage];
       if (!v) return;              // stage inconnu : on garde l'écran précédent
       kicker.textContent = v.kicker;
