@@ -85,13 +85,52 @@
     .prop-meta { font-size: 13px; color: var(--ink-muted); }
     .prop-actions { display: flex; gap: 8px; margin-top: 10px; }
     .prop-actions button { font-size: 14px; padding: 6px 12px; }
+
+    .topbar {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; margin-bottom: 4px;
+    }
+    .topbar h1 { margin-bottom: 0; }
+    .topbar button { font-size: 14px; padding: 6px 12px; }
+
+    .login { max-width: 340px; margin-top: 24px; }
+    .login label { display: block; font-size: 14px; color: var(--ink-muted); margin: 14px 0 4px; }
+    .login input {
+      width: 100%; font: inherit; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink);
+    }
+    .login input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .login button { margin-top: 18px; width: 100%; padding: 12px; }
+    .login .err { margin-top: 14px; }
   </style>
 </head>
 <body>
   <div class="conn" id="conn"></div>
 
-  <main class="wrap">
+  <!-- Écran de connexion. La console reste dans le DOM mais masquée ; ce n'est
+       pas une protection en soi — la vraie barrière, ce sont les règles d'API
+       qui exigent un compte `facilitators` pour écrire. -->
+  <main class="wrap" id="loginView" hidden>
     <h1>Régie</h1>
+    <p class="muted">Console du facilitateur. Connexion requise.</p>
+
+    <form id="loginForm" class="login">
+      <label for="lid">Adresse</label>
+      <input id="lid" type="email" autocomplete="username" required />
+
+      <label for="lpw">Mot de passe</label>
+      <input id="lpw" type="password" autocomplete="current-password" required />
+
+      <div class="err" id="loginErr" hidden></div>
+      <button type="submit" id="loginBtn">Se connecter</button>
+    </form>
+  </main>
+
+  <main class="wrap" id="console" hidden>
+    <div class="topbar">
+      <h1>Régie</h1>
+      <button type="button" id="logout">Se déconnecter</button>
+    </div>
     <p class="note" id="now">…</p>
 
     <div class="err" id="err" hidden></div>
@@ -164,6 +203,17 @@
       ['feedback_open',     'Questionnaire de clôture']
     ];
 
+    /* Toute écriture de la régie passe par le client facilitateur : jeton
+     * distinct de celui du participant, et seul compte accepté par les règles
+     * d'API une fois celles-ci refermées (spec §4). */
+    function R() { return App.regie.pb; }
+
+    function patch(data) {
+      var s = App.session;
+      if (!s) return Promise.reject(new Error('session inconnue'));
+      return R().collection('session').update(s.id, data);
+    }
+
     var conn = document.getElementById('conn');
     var err = document.getElementById('err');
     var now = document.getElementById('now');
@@ -184,7 +234,7 @@
       b.dataset.stage = name;
       b.addEventListener('click', function () {
         ok();
-        App.patchSession({ stage: name }).catch(fail);
+        patch({ stage: name }).catch(fail);
       });
       stagesEl.appendChild(b);
     });
@@ -203,7 +253,7 @@
         if (!s) return;
         var patch = {};
         patch[key] = !s[key];
-        App.patchSession(patch).catch(fail);
+        patch(patch).catch(fail);
       });
       row.appendChild(b);
       flagsEl.appendChild(row);
@@ -221,7 +271,7 @@
       b.dataset.pview = name;
       b.addEventListener('click', function () {
         ok();
-        App.patchSession({ projection_view: name }).catch(fail);
+        patch({ projection_view: name }).catch(fail);
       });
       pviewsEl.appendChild(b);
     });
@@ -232,7 +282,7 @@
       b.dataset.pq = q.key;
       b.addEventListener('click', function () {
         ok();
-        App.patchSession({ projection_question: q.key }).catch(fail);
+        patch({ projection_question: q.key }).catch(fail);
       });
       pquestionsEl.appendChild(b);
     });
@@ -241,7 +291,7 @@
       ok();
       var n = parseInt(islandsEl.value, 10);
       if (!(n >= 1)) return fail('nombre d’îlots invalide');
-      App.patchSession({ islands_count: n }).catch(fail);
+      patch({ islands_count: n }).catch(fail);
     });
 
     /* --- Remplissage des îlots et réaffectation manuelle -------------------
@@ -256,7 +306,7 @@
 
     function loadRoster() {
       var count = App.session ? App.session.islands_count : 10;
-      return App.pb.collection('participants')
+      return R().collection('participants')
         .getFullList({ sort: 'created', requestKey: null })
         .then(function (rows) {
           var byIsland = {};
@@ -297,7 +347,7 @@
                   var num = parseInt(target, 10);
                   if (isNaN(num) || num < 0) return fail('numéro d’îlot invalide');
                   ok();
-                  App.pb.collection('participants').update(m.id, { island: num })
+                  R().collection('participants').update(m.id, { island: num })
                     .then(loadRoster)
                     .catch(fail);
                 });
@@ -316,9 +366,12 @@
     });
 
     // Une arrivée = un participant créé : on suit la collection source.
-    App.pb.collection('participants').subscribe('*', function () {
-      loadRoster();
-    }).catch(function (e) { console.warn('abonnement participants refusé', e); });
+    function watchParticipants() {
+      // Une arrivée = un participant créé : on suit la collection source.
+      R().collection('participants').subscribe('*', function () {
+        loadRoster();
+      }).catch(function (e) { console.warn('abonnement participants refusé', e); });
+    }
 
     /* --- Propositions : validation et injection ---------------------------
      * Valider = créer un `statement` à partir de la description, l'activer,
@@ -329,7 +382,7 @@
     var propStats = document.getElementById('propStats');
 
     function loadProps() {
-      return App.pb.collection('propositions')
+      return R().collection('propositions')
         .getFullList({ sort: 'island,created', requestKey: null })
         .then(function (rows) {
           propListEl.textContent = '';
@@ -376,7 +429,7 @@
               rb.textContent = 'Écarter';
               rb.addEventListener('click', function () {
                 ok();
-                App.pb.collection('propositions').update(p.id, { status: 'rejected' })
+                R().collection('propositions').update(p.id, { status: 'rejected' })
                   .then(loadProps).catch(fail);
               });
 
@@ -387,7 +440,7 @@
               ub.textContent = 'Remettre en attente';
               ub.addEventListener('click', function () {
                 ok();
-                App.pb.collection('propositions').update(p.id, { status: 'draft' })
+                R().collection('propositions').update(p.id, { status: 'draft' })
                   .then(loadProps).catch(fail);
               });
               actions.appendChild(ub);
@@ -408,15 +461,15 @@
 
       // Déjà injectée ? Ne pas créer un doublon si on reclique.
       if (p.statement) {
-        return App.pb.collection('propositions').update(p.id, { status: 'validated' })
+        return R().collection('propositions').update(p.id, { status: 'validated' })
           .then(loadProps).catch(fail);
       }
 
-      App.pb.collection('statements')
+      R().collection('statements')
         .create({ text: p.description, active: true })
         .then(function (st) {
           // Le lien est écrit sur la proposition, jamais sur l'énoncé.
-          return App.pb.collection('propositions')
+          return R().collection('propositions')
             .update(p.id, { status: 'validated', statement: st.id });
         })
         .then(loadProps)
@@ -427,9 +480,11 @@
       ok(); loadProps();
     });
 
-    App.pb.collection('propositions').subscribe('*', function () {
-      loadProps();
-    }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
+    function watchPropositions() {
+      R().collection('propositions').subscribe('*', function () {
+        loadProps();
+      }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
+    }
 
     App.onStatus(function (status) {
       conn.dataset.status = status;
@@ -469,7 +524,59 @@
       if (!propListEl.childElementCount) loadProps();
     });
 
-    App.start();
+    /* ---- Connexion --------------------------------------------------------
+     * Le masquage de la console n'est PAS la sécurité : n'importe qui peut
+     * enlever `hidden` dans l'inspecteur. Ce qui protège réellement, ce sont
+     * les règles d'API qui exigent un compte `facilitators` pour écrire. Le
+     * formulaire évite simplement qu'un curieux tombe sur des boutons qui
+     * marchent (spec §8). */
+    var loginView = document.getElementById('loginView');
+    var consoleView = document.getElementById('console');
+    var loginForm = document.getElementById('loginForm');
+    var loginErr = document.getElementById('loginErr');
+    var loginBtn = document.getElementById('loginBtn');
+    var started = false;
+
+    loginForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      loginErr.hidden = true;
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Connexion…';
+
+      App.regie.login(
+        document.getElementById('lid').value.trim(),
+        document.getElementById('lpw').value
+      ).catch(function (e) {
+        loginErr.hidden = false;
+        loginErr.textContent = e && e.status === 400
+          ? 'Adresse ou mot de passe incorrect.'
+          : 'Connexion impossible : ' + (e && e.message ? e.message : e);
+      }).then(function () {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Se connecter';
+        document.getElementById('lpw').value = '';
+      });
+    });
+
+    document.getElementById('logout').addEventListener('click', function () {
+      App.regie.logout();
+    });
+
+    App.regie.onChange(function (authed) {
+      loginView.hidden = authed;
+      consoleView.hidden = !authed;
+
+      if (authed && !started) {
+        started = true;
+        // On ne démarre les abonnements qu'une fois authentifié : sinon les
+        // souscriptions partent en anonyme et seront refusées.
+        App.start();
+        loadRoster();
+        loadProps();
+        watchParticipants();
+        watchPropositions();
+      }
+    });
   </script>
 </body>
 </html>

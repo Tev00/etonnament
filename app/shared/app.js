@@ -24,6 +24,20 @@
 
   var pb = new PocketBase(API_BASE);
 
+  /* La régie et le participant peuvent tourner dans le MÊME navigateur (le
+   * facilitateur teste sur son téléphone, puis ouvre la régie). Avec le
+   * magasin par défaut, les deux jetons s'écrasent : la régie déconnecte le
+   * participant, et inversement. On donne donc à la régie sa propre clé de
+   * localStorage.
+   *
+   * Le build UMD n'exporte pas LocalAuthStore ; on récupère la classe depuis
+   * une instance. Moins joli qu'un import, mais sans dépendance ajoutée. */
+  function separateStore(key) {
+    var probe = new PocketBase(API_BASE);
+    var LocalAuthStore = Object.getPrototypeOf(probe.authStore).constructor;
+    return new LocalAuthStore(key);
+  }
+
   // Sans ça, deux requêtes concurrentes sur la même collection s'annulent
   // mutuellement — comportement par défaut du SDK, piège classique.
   pb.autoCancellation(false);
@@ -323,6 +337,44 @@
     apiBase: API_BASE,
 
     watchView: watchView,
+
+    /* ---- Régie -----------------------------------------------------------
+     * La console de régie DOIT être derrière un vrai compte, pas une URL
+     * obscure : quelqu'un dans la salle finira par trouver /app/regie, et
+     * c'est exactement le public qui a envie d'essayer (spec §8). */
+    regie: (function () {
+      var rpb = null;   // client dédié, jeton séparé du participant
+
+      function client() {
+        if (!rpb) {
+          rpb = new PocketBase(API_BASE, separateStore('etonnamment.regie'));
+          rpb.autoCancellation(false);
+        }
+        return rpb;
+      }
+
+      return {
+        get pb() { return client(); },
+
+        get isAuthed() { return client().authStore.isValid; },
+
+        get user() { return client().authStore.model; },
+
+        login: function (identity, password) {
+          return client().collection('facilitators')
+            .authWithPassword(identity, password);
+        },
+
+        logout: function () { client().authStore.clear(); },
+
+        /** Rappelé à chaque connexion/déconnexion. */
+        onChange: function (fn) {
+          var c = client();
+          fn(c.authStore.isValid);
+          return c.authStore.onChange(function () { fn(c.authStore.isValid); });
+        }
+      };
+    })(),
 
     ensureParticipant: ensureParticipant,
 
