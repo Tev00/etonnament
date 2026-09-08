@@ -275,9 +275,16 @@ Trois points qui portent tout le poids :
 3. **`propositions` ne fuit jamais vers le public.** La règle de lecture exige
    d'être dans l'îlot ou d'être la régie.
 
-> ⚠️ Vérifier la syntaxe `@collection.<name>.<field>` contre la doc PocketBase
-> de la version installée avant de s'appuyer dessus ; c'est le point que je
-> testerais en premier, avec un compte de test, avant d'écrire le reste.
+> ✅ **Vérifié sur l'instance** (7 sept.). `@collection.session.entry_open = true`
+> en règle de création sur `entry_answers` fonctionne : `entry_open = true` →
+> création acceptée, `entry_open = false` → création refusée. Le motif est donc
+> valide pour `propositions_open`, `vote_open` et `feedback_open`.
+>
+> ⚠️ **Piège à connaître.** Une création refusée par une règle renvoie
+> **400 avec un corps d'erreur vide**, et non 403 — indiscernable au premier
+> coup d'œil d'une erreur de validation ou de base de données. Avant de
+> soupçonner le schéma, vérifier l'état du drapeau correspondant dans
+> `session`. (Une *lecture* refusée, elle, renvoie bien 403.)
 
 ---
 
