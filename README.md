@@ -83,12 +83,20 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
 - [x] 5. Propositions et validation régie
 - [x] 6. Vote, classement projeté, pagination régie
 - [x] Régie derrière un compte `facilitators` (spec §8)
+- [x] 7. Questionnaire de clôture, compteur régie
 - [x] Vérification statique avant déploiement (`check.sh`)
+- [x] Test de fumée navigateur des trois surfaces (`smoke.sh`)
 
 **Reste à faire**
 
-- [ ] 7. Questionnaire de clôture (`feedback`)
 - [ ] 8. Console de régie : export papier des îlots et des énoncés (spec §7)
+- [ ] Ajouter `programme` aux valeurs de `projection_view` dans l'admin
+      PocketBase — la valeur est prévue au §1.7 mais absente du schéma, donc
+      le bouton correspondant de la régie renvoie 400 (le test de fumée
+      échoue là-dessus, exprès)
+- [ ] Écran « programme » sur la projection, une fois la valeur acceptée
+- [ ] Valider les libellés du questionnaire de clôture (annexe B) —
+      ceux de `questions.js` sont une proposition
 - [ ] Audit des règles d'API restantes contre le tableau du §4 —
       `propositions` et `session` sont faits, les autres non
 - [ ] Deuxième compte facilitateur (spec §1.8 : deux, pas un)
@@ -97,10 +105,22 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
       voir `docs/SCALEWAY-SETUP.md`
 - [ ] Test de bout en bout des étapes 5 et 6 — jamais exercées avec de vrais
       participants et les drapeaux ouverts
-- [ ] Test de fumée navigateur de la régie (clic sur chaque bouton), qui
-      attrape ce que le linter ne voit pas
 - [ ] **Répétition générale avec de vrais téléphones** — spec §9, non
       négociable
+
+---
+
+## Vérifier avant de déployer
+
+```bash
+./check.sh                                   # ESLint, ~1 s, lancé par deploy-app.sh
+REGIE_EMAIL=… REGIE_PASSWORD=… ./smoke.sh    # navigateur réel, ~10 s
+```
+
+`smoke.sh` clique sur tous les boutons de la régie et exige de chacun qu'il
+parte réellement écrire — ce qu'un linter ne peut pas voir. Il **écrit dans la
+base de production** : il relève `session` au début et la restaure à la fin.
+Ne pas le lancer pendant l'événement.
 
 ---
 
