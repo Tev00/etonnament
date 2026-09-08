@@ -79,33 +79,61 @@ window.QUESTIONS = [
 window.CONSIGNE_QUESTIONS = ['q2', 'q6'];
 
 /* ---------------------------------------------------------------------------
- * Annexe B : questionnaire de clôture.
+ * Annexe B : questionnaire de clôture.
  *
- * Libellés fournis par Paul le 8 septembre. Le §1.6 de la spec parlait de cinq
- * questions « fermées + texte libre court » : ce sont finalement quatre
- * questions, dont trois ouvertes. La spec est en retard sur le déroulé, pas
- * l'inverse.
+ * Six questions : les quatre du déroulé (Paul, 8 sept.), précédées de deux
+ * questions fermées qui rejoignent la mission d'entrée.
  *
- * Comme pour l'annexe A, rien de tout cela n'est en base : `feedback.answers`
- * est un json indexé par ces clés. On peut corriger une faute de frappe en
- * pleine soirée. En revanche, ne pas RENUMÉROTER les clés une fois que des
- * réponses sont arrivées.
+ * Pourquoi ces deux-là d'abord. Elles se répondent d'un doigt : commencer par
+ * un tap plutôt que par un champ de texte, c'est la différence entre un
+ * questionnaire commencé et un questionnaire regardé. Les trois champs libres
+ * viennent ensuite, quand la personne est déjà dedans.
  *
- * Trois champs libres sur un téléphone à 21h15, c'est beaucoup de saisie. D'où
- * trois choix de conception : aucune question n'est obligatoire, chaque réponse
- * part dès qu'elle est écrite (celui qui répond à deux questions et s'en va en
- * laisse deux), et les exemples en filigrane disent qu'une ligne suffit.
+ * ⚠️ Une seule des deux est une VRAIE mesure avant/après. F2 reprend Q3 presque
+ * mot pour mot : on peut comparer les deux réponses d'une même personne et dire
+ * si la soirée a changé quelque chose. F1 porte sur la surprise, que la mission
+ * d'entrée ne mesure pas — c'est une donnée neuve, pas un second point sur une
+ * courbe. Ne pas présenter les deux comme un avant/après dans le bilan.
+ *
+ * Rien n'est en base : `feedback.answers` est un json indexé par ces clés.
+ * Les clés sont désormais figées — au 8 septembre la collection `feedback` est
+ * vide, c'était donc le dernier moment pour les renuméroter.
  */
 window.FEEDBACK = [
   {
+    // Donnée neuve : la mission d'entrée ne demande rien sur la surprise.
     key: 'f1',
+    type: 'choice',
+    text: 'Ce soir, avez-vous entendu un point de vue qui vous a surpris ?',
+    options: [
+      { key: 'f1_c1', label: 'Oui, plusieurs' },
+      { key: 'f1_c2', label: 'Oui, un' },
+      { key: 'f1_c3', label: 'Non' }
+    ]
+  },
+  {
+    /* Miroir de Q3 — « Avez-vous déjà renoncé à dire ce que vous pensiez dans
+     * un groupe par crainte de la réaction ? ». Posée à l'arrivée et au
+     * départ, c'est la seule paire du questionnaire qui autorise un
+     * avant/après sur la même personne. */
+    key: 'f2',
+    type: 'choice',
+    text: 'Ce soir, avez-vous pu dire ce que vous pensiez, sans vous retenir ?',
+    options: [
+      { key: 'f2_c1', label: 'Oui' },
+      { key: 'f2_c2', label: 'En partie' },
+      { key: 'f2_c3', label: 'Non' }
+    ]
+  },
+  {
+    key: 'f3',
     type: 'text',
     text: 'Qu’est-ce qui a le mieux marché, selon vous ?',
     placeholder: 'Une ligne suffit.',
     max: 400
   },
   {
-    key: 'f2',
+    key: 'f4',
     type: 'text',
     text: 'Qu’est-ce qui a coincé ?',
     placeholder: 'Même une petite chose.',
@@ -113,21 +141,21 @@ window.FEEDBACK = [
   },
   {
     /* Deux questions en une dans le déroulé — « revenir » ET « amener
-     * quelqu'un ». En choix fermé plutôt qu'en texte libre : c'est le seul
-     * chiffre de ce questionnaire, celui qu'on citera pour décider s'il y a
-     * une prochaine soirée. Les options gardent les deux idées distinctes. */
-    key: 'f3',
+     * quelqu'un ». En choix fermé plutôt qu'en texte libre : c'est le
+     * chiffre qu'on citera pour décider s'il y a une prochaine soirée. Les
+     * options gardent les deux idées distinctes. */
+    key: 'f5',
     type: 'choice',
     text: 'Seriez-vous prêt·e à revenir, ou à amener quelqu’un ?',
     options: [
-      { key: 'f3_c1', label: 'Oui, et j’amènerais quelqu’un' },
-      { key: 'f3_c2', label: 'Oui, je reviendrais' },
-      { key: 'f3_c3', label: 'Peut-être' },
-      { key: 'f3_c4', label: 'Non' }
+      { key: 'f5_c1', label: 'Oui, et j’amènerais quelqu’un' },
+      { key: 'f5_c2', label: 'Oui, je reviendrais' },
+      { key: 'f5_c3', label: 'Peut-être' },
+      { key: 'f5_c4', label: 'Non' }
     ]
   },
   {
-    key: 'f4',
+    key: 'f6',
     type: 'text',
     text: 'Qu’est-ce que vous diriez à quelqu’un pour l’inviter au prochain débat ?',
     placeholder: 'Vos mots à vous — ce sont les meilleurs pour inviter.',
