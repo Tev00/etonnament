@@ -28,6 +28,8 @@ Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 ├── docs/
 │   ├── SCALEWAY-SETUP.md  runbook d'installation
 │   └── app-spec.md        schéma PocketBase, règles d'API, phases
+├── check.sh               vérification statique (ESLint) avant déploiement
+├── eslint.config.mjs
 ├── deploy-app.sh
 └── netlify.toml           publish = "site"
 ```
@@ -43,14 +45,22 @@ Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 
 ```bash
 chmod +x deploy-app.sh        # une seule fois
-./deploy-app.sh               # rsync vers app.etonnamment.fr/app/
+./deploy-app.sh               # vérifie le code, puis rsync vers app.etonnamment.fr/app/
 
 # avant que le DNS existe, ciblez l'IP :
 DEPLOY_HOST=deploy@<IP> ./deploy-app.sh
 ```
 
-Le script fait une simulation et demande confirmation avant d'écrire quoi que
-ce soit. Rollback : `git revert` puis relancer.
+Le script lance d'abord `./check.sh` (ESLint, tiré par npx — rien n'est
+installé à demeure), puis fait une simulation rsync et demande confirmation
+avant d'écrire quoi que ce soit. Rollback : `git revert` puis relancer.
+
+Le contrôle refuse le déploiement sur une erreur. Le soir même, si le réseau
+ne permet pas à npx de tourner ou qu'un correctif doit partir immédiatement :
+
+```bash
+SKIP_CHECK=1 ./deploy-app.sh
+```
 
 ---
 

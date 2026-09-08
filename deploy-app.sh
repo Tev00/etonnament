@@ -30,6 +30,21 @@ if [ ! -f "${SRC}index.html" ]; then
   exit 1
 fi
 
+# Vérification statique avant tout envoi. Une erreur de syntaxe ou une
+# variable qui en masque une autre ne se voit pas à la relecture et ne casse
+# la page qu'au premier clic — c'est-à-dire, ici, en salle.
+#
+# Échappatoire assumée : le soir même, si le contrôle ne peut pas tourner et
+# qu'un correctif doit partir tout de suite, SKIP_CHECK=1 le court-circuite.
+# Un outil qui empêche de déployer un correctif est pire que le bug.
+if [ "${SKIP_CHECK:-0}" = "1" ]; then
+  echo "⚠ Vérification sautée (SKIP_CHECK=1)."
+  echo
+else
+  ./check.sh
+  echo
+fi
+
 echo "→ ${SRC}  vers  ${DEPLOY_HOST}:${DEPLOY_PATH}"
 echo
 
