@@ -375,7 +375,13 @@
       vpage.textContent = pages > 1 ? (page + 1) + ' / ' + pages : '';
     }
 
-    App.watchView('vote_results', 'votes', function (rows) {
+    /* On garde la fonction de relecture : la règle de lecture de
+     * `vote_results` exige `projection_view = "vote"` (spec §4). Tant que la
+     * régie n'a pas basculé, cette vue renvoie zéro ligne — et sans relecture
+     * au moment de la bascule, l'écran resterait vide jusqu'au GET périodique.
+     * Quinze secondes de grand écran blanc à 21h00, pendant que la salle
+     * regarde. */
+    var reloadVotes = App.watchView('vote_results', 'votes', function (rows) {
       voteRows = rows;
       renderVote();
     });
@@ -390,7 +396,10 @@
       if (typeof s.projection_page === 'number' && s.projection_page !== votePage) {
         votePage = s.projection_page;
       }
-      if (showVote) renderVote();
+      if (showVote) {
+        renderVote();                       // d'abord ce qu'on a déjà
+        if (!voteRows.length) reloadVotes(); // puis on va chercher le reste
+      }
 
       if (s.projection_question && s.projection_question !== currentQuestion) {
         currentQuestion = s.projection_question;

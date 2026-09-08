@@ -23,3 +23,8 @@ backups/
 # Binaires
 pocketbase
 *.zip
+
+# Test de fumée : Playwright et son navigateur, installés à la demande.
+.smoke/
+node_modules
+test-results/
