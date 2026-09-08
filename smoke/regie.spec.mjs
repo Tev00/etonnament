@@ -131,6 +131,41 @@ test('les vues de projection et la pagination écrivent', async ({ page }) => {
   expect(errors, 'erreurs console sur la projection').toEqual([]);
 });
 
+/* L'export papier est le filet de la soirée : s'il ne sort pas à 20h00,
+ * personne ne le découvre avant que le wifi tombe. On stube window.print —
+ * la boîte d'impression bloquerait le navigateur — et on vérifie la feuille
+ * elle-même, qui est ce qui compte. */
+test('l’export papier produit une feuille complète', async ({ page }) => {
+  await page.addInitScript(() => { window.print = () => { window.__printed = true; }; });
+  const errors = await openRegie(page);
+
+  await page.click('#printExport');
+  await expect(page.locator('#exportStats')).not.toHaveText('préparation…',
+    { timeout: 10000 });
+
+  const sheet = await page.evaluate(() => ({
+    printed: !!window.__printed,
+    islands: document.querySelectorAll('#printable .pr-isl').length,
+    statements: document.querySelectorAll('#printable .pr-st').length,
+    headings: Array.from(document.querySelectorAll('#printable h2'))
+      .map(h => h.textContent),
+    // La feuille ne doit jamais rapprocher un énoncé d'un numéro d'îlot :
+    // ce serait l'anonymat perdu sur une photocopie (spec §1.4).
+    statementsMentionIsland: Array.from(
+      document.querySelectorAll('#printable .pr-st')
+    ).some(e => /[îi]lot/i.test(e.textContent))
+  }));
+
+  expect(sheet.printed, 'window.print() jamais appelé').toBe(true);
+  expect(sheet.islands, 'aucun îlot sur la feuille').toBeGreaterThan(0);
+  expect(sheet.statements, 'aucun énoncé sur la feuille').toBeGreaterThan(0);
+  expect(sheet.headings.length, 'les deux sections attendues').toBe(2);
+  expect(sheet.statementsMentionIsland,
+    'un énoncé cite un numéro d’îlot — anonymat rompu').toBe(false);
+
+  expect(errors, 'erreurs console à l’export').toEqual([]);
+});
+
 test('les listes de la régie se chargent sans erreur', async ({ page }) => {
   const errors = await openRegie(page);
 

@@ -102,6 +102,52 @@
     .login input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     .login button { margin-top: 18px; width: 100%; padding: 12px; }
     .login .err { margin-top: 14px; }
+
+    /* ---- Export papier ----
+       À l'écran, #printable n'existe pas. À l'impression, il est le seul
+       contenu : on masque tout le reste plutôt que de mettre en forme la
+       console, qui n'a aucun sens sur une feuille. */
+    #printable { display: none; }
+
+    @media print {
+      body > *:not(#printable) { display: none !important; }
+      #printable { display: block; }
+
+      /* Le noir sur blanc s'imprime ; le corail coûte de l'encre et ne dit
+         rien de plus sur une feuille. */
+      #printable, #printable * { color: #000; background: #fff; }
+
+      .pr-head { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 18px; }
+      /* line-height serré + capitale accentuée = accent rogné en haut de
+         page. Londrina reste pour le titre, mais avec de l'air au-dessus. */
+      .pr-head h1 { font-size: 20pt; margin: 0 0 4px; line-height: 1.25; padding-top: 2mm; }
+      .pr-when { font-size: 9pt; }
+
+      .pr-section { break-inside: auto; }
+      /* Les intertitres portent des chiffres — « (6) énoncés ». Dans la
+         police d'affichage, un 6 se lit G. Sur une feuille de travail
+         photocopiée, la lisibilité passe avant la marque. */
+      .pr-section h2 {
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 13pt;
+        margin: 0 0 10px;
+      }
+
+      /* Un îlot ne doit jamais être coupé entre deux pages : on cherche une
+         table dans la salle, pas une ligne dans un tableau. */
+      .pr-isl { break-inside: avoid; margin-bottom: 12px; }
+      .pr-isl-h { font-weight: 700; font-size: 11pt; border-bottom: 1px solid #999; }
+      .pr-isl-m { font-size: 10pt; }
+
+      /* Les énoncés commencent sur une nouvelle feuille : ils circulent
+         séparément des listes de tables. */
+      .pr-statements { break-before: page; }
+      .pr-st { break-inside: avoid; margin-bottom: 10px; font-size: 11pt; }
+      .pr-st b { margin-right: 6px; }
+
+      .pr-empty { font-style: italic; }
+    }
   </style>
 </head>
 <body>
@@ -187,6 +233,20 @@
     </fieldset>
 
     <fieldset>
+      <legend>Export papier</legend>
+      <p class="note">
+        Les îlots avec leurs membres, et les énoncés retenus. À sortir
+        <strong>vers 20h00, avant le vote</strong>&nbsp;: c'est le moment où une
+        panne coûterait le plus cher (spec §7). S'il n'y a pas d'imprimante,
+        « enregistrer en PDF » dans la boîte d'impression fait le même office.
+      </p>
+      <p class="note">
+        <button id="printExport" type="button">Préparer et imprimer</button>
+        <span id="exportStats"></span>
+      </p>
+    </fieldset>
+
+    <fieldset>
       <legend>Clôture</legend>
       <p class="note">
         Combien de questionnaires sont rentrés. Sert à décider quand fermer,
@@ -217,6 +277,9 @@
       l'événement — voir docs/app-spec.md §4.
     </p>
   </main>
+
+  <!-- Rempli à la demande, invisible à l'écran, seul contenu imprimé. -->
+  <div id="printable" aria-hidden="true"></div>
 
   <script src="shared/pocketbase.umd.js"></script>
   <script src="shared/questions.js"></script>
@@ -334,6 +397,131 @@
       patch({ projection_page: 0 }).catch(fail);
     });
 
+    /* Îlot 0 = « sans îlot ». Les îlots vides sont conservés dans le
+     * regroupement : une table sans personne est une information, pas un
+     * trou à masquer. Partagé par la console et par l'export papier. */
+    function groupByIsland(rows, count) {
+      var byIsland = {};
+      for (var i = 0; i <= count; i++) byIsland[i] = [];
+      rows.forEach(function (r) {
+        var isl = r.island || 0;
+        if (!byIsland[isl]) byIsland[isl] = [];
+        byIsland[isl].push(r);
+      });
+      return byIsland;
+    }
+
+    /* ---- Export papier (spec §7) ------------------------------------------
+     * Le filet de sécurité de la soirée. Si le wifi tombe à 20h30, cette
+     * feuille est la seule chose qui dise encore qui est à quelle table et
+     * quels énoncés partent au vote.
+     *
+     * On relit les données au moment de l'export plutôt que de réutiliser ce
+     * qui est à l'écran : la feuille sortie doit correspondre à l'instant où
+     * on appuie, et non à la dernière fois que la console s'est rafraîchie.
+     *
+     * Rien ici ne dit d'où vient un énoncé. `statements` ne porte pas d'îlot
+     * (spec §1.4) et la feuille ne rapproche pas les deux listes — sinon
+     * l'anonymat tomberait sur une photocopie. */
+    var exportStats = document.getElementById('exportStats');
+    var printable = document.getElementById('printable');
+
+    function el(tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function buildExport() {
+      var count = (App.session && App.session.islands_count) || 10;
+
+      return Promise.all([
+        R().collection('participants').getFullList({ sort: 'created', requestKey: null }),
+        R().collection('statements').getFullList({
+          filter: 'active = true', sort: 'created', requestKey: null
+        })
+      ]).then(function (r) {
+        var byIsland = groupByIsland(r[0], count);
+        var statements = r[1];
+
+        printable.textContent = '';
+
+        var head = el('div', 'pr-head');
+        head.appendChild(el('h1', null, 'Étonnamment d’accord'));
+        head.appendChild(el('div', 'pr-when',
+          'Édité le ' + new Date().toLocaleString('fr-FR')));
+        printable.appendChild(head);
+
+        // --- îlots ---
+        var isl = el('div', 'pr-section');
+        isl.appendChild(el('h2', null, 'Îlots'));
+
+        Object.keys(byIsland).map(Number).sort(function (a, b) { return a - b; })
+          .forEach(function (n) {
+            var members = byIsland[n];
+            if (n === 0 && !members.length) return;
+
+            var box = el('div', 'pr-isl');
+            var title = (n === 0 ? 'Sans îlot' : 'Îlot ' + n);
+
+            // Un îlot vide reste listé — savoir qu'une table est vide fait
+            // partie de ce qu'on lit sur cette feuille — mais tient sur une
+            // ligne, sans « 0 personne » suivi de « personne ».
+            box.appendChild(el('div', 'pr-isl-h', members.length
+              ? title + ' — ' + members.length + ' personne'
+                + (members.length > 1 ? 's' : '')
+              : title + ' — vide'));
+
+            if (members.length) {
+              box.appendChild(el('div', 'pr-isl-m', members.map(function (m) {
+                return shortName(m.username);
+              }).join(' · ')));
+            }
+
+            isl.appendChild(box);
+          });
+        printable.appendChild(isl);
+
+        // --- énoncés ---
+        var st = el('div', 'pr-section pr-statements');
+        st.appendChild(el('h2', null,
+          'Énoncés soumis au vote (' + statements.length + ')'));
+
+        if (!statements.length) {
+          st.appendChild(el('div', 'pr-empty',
+            'Aucun énoncé actif. Rien ne partira au vote en l’état.'));
+        } else {
+          statements.forEach(function (x, i) {
+            var row = el('div', 'pr-st');
+            // L'espace est écrit en toutes lettres et non laissé à la marge
+            // CSS : à la photocopie, c'est la mise en forme qui saute en
+            // premier, jamais le texte.
+            row.appendChild(el('b', null, (i + 1) + '.'));
+            row.appendChild(document.createTextNode(' ' + x.text));
+            st.appendChild(row);
+          });
+        }
+        printable.appendChild(st);
+
+        var people = r[0].length;
+        exportStats.textContent = people + ' participant' + (people > 1 ? 's' : '')
+          + ', ' + statements.length + ' énoncé' + (statements.length > 1 ? 's' : '');
+        return { people: people, statements: statements.length };
+      });
+    }
+
+    document.getElementById('printExport').addEventListener('click', function () {
+      ok();
+      exportStats.textContent = 'préparation…';
+      buildExport()
+        .then(function () { window.print(); })
+        .catch(function (e) {
+          exportStats.textContent = '';
+          fail(e);
+        });
+    });
+
     /* Compteur des questionnaires de clôture. `feedback` n'est lisible que par
      * la régie (spec §4), donc ce chiffre n'existe nulle part ailleurs. On ne
      * s'abonne pas : à 21h15 un rafraîchissement manuel suffit, et une
@@ -378,13 +566,7 @@
       return R().collection('participants')
         .getFullList({ sort: 'created', requestKey: null })
         .then(function (rows) {
-          var byIsland = {};
-          for (var i = 0; i <= count; i++) byIsland[i] = [];
-          rows.forEach(function (r) {
-            var isl = r.island || 0;
-            if (!byIsland[isl]) byIsland[isl] = [];
-            byIsland[isl].push(r);
-          });
+          var byIsland = groupByIsland(rows, count);
 
           rosterEl.textContent = '';
           Object.keys(byIsland).map(Number).sort(function (a, b) { return a - b; })
