@@ -63,6 +63,28 @@
       border-radius: 999px;
     }
     .unassigned { color: var(--warn); }
+
+    .prop-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .prop-head {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; color: var(--ink-muted); margin-bottom: 6px;
+    }
+    .tag {
+      font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+      border-radius: 999px; padding: 2px 9px; border: 1px solid var(--line);
+    }
+    .tag.draft     { color: var(--ink-muted); }
+    .tag.validated { color: #fff; background: var(--ok);    border-color: var(--ok); }
+    .tag.rejected  { color: #fff; background: var(--ink-muted); border-color: var(--ink-muted); }
+    .prop-desc { font-size: 16px; margin: 6px 0; }
+    .prop-meta { font-size: 13px; color: var(--ink-muted); }
+    .prop-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .prop-actions button { font-size: 14px; padding: 6px 12px; }
   </style>
 </head>
 <body>
@@ -95,6 +117,20 @@
       <p class="note" style="margin-top:14px">Question projetée — <code>projection_question</code></p>
       <div class="grid" id="pquestions"></div>
       <p class="note" id="pqtext"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Propositions</legend>
+      <p class="note">
+        Valider crée un énoncé <em>sans</em> numéro d'îlot et l'active pour le
+        vote. C'est cette copie qui coupe le lien&nbsp;: à partir de là, plus
+        rien ne dit d'où vient la proposition.
+      </p>
+      <div id="propList" class="roster"></div>
+      <p class="note">
+        <button id="refreshProps" type="button">Rafraîchir</button>
+        <span id="propStats"></span>
+      </p>
     </fieldset>
 
     <fieldset>
@@ -284,6 +320,117 @@
       loadRoster();
     }).catch(function (e) { console.warn('abonnement participants refusé', e); });
 
+    /* --- Propositions : validation et injection ---------------------------
+     * Valider = créer un `statement` à partir de la description, l'activer,
+     * puis noter la référence sur la proposition. La frontière d'anonymat est
+     * là : `propositions` porte l'îlot, `statements` ne le porte pas, et rien
+     * dans `statements` ne pointe vers `propositions` (spec §1.4). */
+    var propListEl = document.getElementById('propList');
+    var propStats = document.getElementById('propStats');
+
+    function loadProps() {
+      return App.pb.collection('propositions')
+        .getFullList({ sort: 'island,created', requestKey: null })
+        .then(function (rows) {
+          propListEl.textContent = '';
+
+          var counts = { draft: 0, validated: 0, rejected: 0 };
+          rows.forEach(function (p) { counts[p.status] = (counts[p.status] || 0) + 1; });
+          propStats.textContent = rows.length + ' proposition(s) — ' +
+            counts.draft + ' en attente, ' + counts.validated + ' retenue(s), ' +
+            counts.rejected + ' écartée(s)';
+
+          rows.forEach(function (p) {
+            var row = document.createElement('div');
+            row.className = 'prop-row';
+
+            var head = document.createElement('div');
+            head.className = 'prop-head';
+            var tag = document.createElement('span');
+            tag.className = 'tag ' + p.status;
+            tag.textContent = p.status;
+            var isl = document.createElement('strong');
+            isl.textContent = 'Îlot ' + p.island;
+            head.appendChild(isl); head.appendChild(tag);
+
+            var desc = document.createElement('div');
+            desc.className = 'prop-desc';
+            desc.textContent = p.description || '(vide)';
+
+            var meta = document.createElement('div');
+            meta.className = 'prop-meta';
+            meta.textContent = 'Problème : ' + (p.problem || '—') +
+              '  ·  Effet : ' + (p.effect || '—');
+
+            var actions = document.createElement('div');
+            actions.className = 'prop-actions';
+
+            if (p.status === 'draft') {
+              var vb = document.createElement('button');
+              vb.type = 'button';
+              vb.textContent = 'Valider → énoncé';
+              vb.addEventListener('click', function () { validate(p, vb); });
+
+              var rb = document.createElement('button');
+              rb.type = 'button';
+              rb.textContent = 'Écarter';
+              rb.addEventListener('click', function () {
+                ok();
+                App.pb.collection('propositions').update(p.id, { status: 'rejected' })
+                  .then(loadProps).catch(fail);
+              });
+
+              actions.appendChild(vb); actions.appendChild(rb);
+            } else {
+              var ub = document.createElement('button');
+              ub.type = 'button';
+              ub.textContent = 'Remettre en attente';
+              ub.addEventListener('click', function () {
+                ok();
+                App.pb.collection('propositions').update(p.id, { status: 'draft' })
+                  .then(loadProps).catch(fail);
+              });
+              actions.appendChild(ub);
+            }
+
+            row.appendChild(head); row.appendChild(desc);
+            row.appendChild(meta); row.appendChild(actions);
+            propListEl.appendChild(row);
+          });
+        })
+        .catch(fail);
+    }
+
+    function validate(p, button) {
+      if (!p.description) return fail('proposition vide : rien à injecter');
+      ok();
+      button.disabled = true;
+
+      // Déjà injectée ? Ne pas créer un doublon si on reclique.
+      if (p.statement) {
+        return App.pb.collection('propositions').update(p.id, { status: 'validated' })
+          .then(loadProps).catch(fail);
+      }
+
+      App.pb.collection('statements')
+        .create({ text: p.description, active: true })
+        .then(function (st) {
+          // Le lien est écrit sur la proposition, jamais sur l'énoncé.
+          return App.pb.collection('propositions')
+            .update(p.id, { status: 'validated', statement: st.id });
+        })
+        .then(loadProps)
+        .catch(function (e) { button.disabled = false; fail(e); });
+    }
+
+    document.getElementById('refreshProps').addEventListener('click', function () {
+      ok(); loadProps();
+    });
+
+    App.pb.collection('propositions').subscribe('*', function () {
+      loadProps();
+    }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
+
     App.onStatus(function (status) {
       conn.dataset.status = status;
       conn.textContent = status === 'offline'
@@ -319,6 +466,7 @@
       if (document.activeElement !== islandsEl) islandsEl.value = s.islands_count;
 
       if (!rosterEl.childElementCount) loadRoster();
+      if (!propListEl.childElementCount) loadProps();
     });
 
     App.start();

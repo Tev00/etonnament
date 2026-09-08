@@ -82,6 +82,36 @@
       padding-left: 14px;
       margin: 18px 0 24px;
     }
+
+    /* ---- propositions ---- */
+    .prop {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 16px 0;
+    }
+    .prop h2 { font-size: 18px; margin-bottom: 12px; }
+    .prop label { display: block; font-size: 14px; color: var(--ink-muted); margin: 12px 0 4px; }
+    .prop input, .prop textarea {
+      width: 100%;
+      font: inherit;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+    }
+    .prop textarea { min-height: 88px; resize: vertical; }
+    .prop input:focus, .prop textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .prop-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 14px;
+    }
+    .count { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+    .count.over { color: var(--warn); font-weight: 600; }
+    .prop-state { font-size: 13px; color: var(--ink-muted); }
+    .prop.locked { opacity: .7; }
+    .prop.locked input, .prop.locked textarea { background: #FAFAF8; }
   </style>
 </head>
 <body>
@@ -143,6 +173,14 @@
     <section class="panel" data-stage="propositions">
       <h1>Vos propositions</h1>
       <p class="closed" data-when-closed="propositions_open">La saisie n'est pas encore ouverte.</p>
+      <div id="propsWrap" hidden>
+        <p class="muted">
+          Deux propositions pour votre îlot. N'importe qui à votre table peut
+          les écrire ou les corriger — le texte se synchronise entre vos
+          téléphones.
+        </p>
+        <div id="props"></div>
+      </div>
     </section>
 
     <section class="panel" data-stage="vote">
@@ -194,7 +232,16 @@
       // sur le téléphone suive sans qu'on ait à recharger.
       if (App.participant) {
         App.refreshParticipant()
-          .then(function (me) { if (me) setIsland(me.island); })
+          .then(function (me) {
+            if (!me) return;
+            var moved = me.island !== myIsland;
+            setIsland(me.island);
+            if (moved) { propsBuilt = false; propRecords = []; }
+            if (s.propositions_open && myIsland > 0) {
+              propsWrap.hidden = false;
+              loadProps().then(watchProps);
+            }
+          })
           .catch(function () { /* on garde le dernier numéro connu */ });
       }
     });
@@ -358,6 +405,150 @@
         missionEl.hidden = false;
         savedEl.textContent = 'Rechargez la page dans un instant.';
       });
+
+    /* ---- Propositions -----------------------------------------------------
+     * Pas de rôle « rapporteur » (spec §6.1) : tout l'îlot peut écrire. Deux
+     * téléphones sur la même proposition, c'est donc normal — d'où la
+     * synchronisation en direct, et la règle de ne jamais écraser un champ
+     * que quelqu'un est en train de remplir. */
+    var MAX_DESC = 300;
+    var PROP_SLOTS = 2;
+
+    var propsWrap = document.getElementById('propsWrap');
+    var propsEl = document.getElementById('props');
+    var propRecords = [];        // enregistrements de mon îlot
+    var propsBuilt = false;
+    var saveTimers = {};
+
+    function propFields(slot) {
+      return {
+        problem: document.getElementById('p' + slot + 'problem'),
+        description: document.getElementById('p' + slot + 'desc'),
+        effect: document.getElementById('p' + slot + 'effect'),
+        count: document.getElementById('p' + slot + 'count'),
+        state: document.getElementById('p' + slot + 'state'),
+        box: document.getElementById('p' + slot + 'box')
+      };
+    }
+
+    function buildProps() {
+      if (propsBuilt) return;
+      propsBuilt = true;
+      propsEl.textContent = '';
+
+      for (var s = 0; s < PROP_SLOTS; s++) {
+        var box = document.createElement('div');
+        box.className = 'prop';
+        box.id = 'p' + s + 'box';
+        box.innerHTML =
+          '<h2>Proposition ' + (s + 1) + '</h2>' +
+          '<label for="p' + s + 'problem">Le problème visé</label>' +
+          '<input id="p' + s + 'problem" type="text" maxlength="200" />' +
+          '<label for="p' + s + 'desc">La proposition, en deux phrases</label>' +
+          '<textarea id="p' + s + 'desc" maxlength="' + MAX_DESC + '"></textarea>' +
+          '<label for="p' + s + 'effect">L’effet attendu</label>' +
+          '<input id="p' + s + 'effect" type="text" maxlength="200" />' +
+          '<div class="prop-foot">' +
+            '<span class="prop-state" id="p' + s + 'state"></span>' +
+            '<span class="count" id="p' + s + 'count"></span>' +
+          '</div>';
+        propsEl.appendChild(box);
+      }
+
+      for (var i = 0; i < PROP_SLOTS; i++) bindProp(i);
+    }
+
+    function bindProp(slot) {
+      var f = propFields(slot);
+
+      function onInput() {
+        var len = f.description.value.length;
+        f.count.textContent = len + ' / ' + MAX_DESC;
+        f.count.classList.toggle('over', len >= MAX_DESC);
+
+        // Débounce : on écrit pendant qu'on tape, mais pas à chaque lettre.
+        if (saveTimers[slot]) clearTimeout(saveTimers[slot]);
+        f.state.textContent = 'modification en cours…';
+        saveTimers[slot] = setTimeout(function () { saveProp(slot); }, 800);
+      }
+
+      [f.problem, f.description, f.effect].forEach(function (el) {
+        el.addEventListener('input', onInput);
+      });
+    }
+
+    function saveProp(slot) {
+      var f = propFields(slot);
+      var data = {
+        island: myIsland,
+        problem: f.problem.value,
+        description: f.description.value,
+        effect: f.effect.value
+      };
+      var existing = propRecords[slot];
+
+      var op = existing
+        ? App.pb.collection('propositions').update(existing.id, data)
+        : App.pb.collection('propositions').create(
+            Object.assign({ status: 'draft' }, data));
+
+      return op.then(function (rec) {
+        propRecords[slot] = rec;
+        f.state.textContent = 'enregistré';
+      }).catch(function (e) {
+        f.state.textContent = 'non enregistré — la saisie est peut-être fermée';
+        console.warn('proposition non enregistrée', e);
+      });
+    }
+
+    function fillProp(slot, rec) {
+      var f = propFields(slot);
+      if (!f.problem) return;
+
+      // Ne jamais écraser le champ que quelqu'un est en train de remplir :
+      // deux personnes du même îlot peuvent écrire en même temps.
+      [['problem', f.problem], ['description', f.description], ['effect', f.effect]]
+        .forEach(function (pair) {
+          var el = pair[1];
+          if (document.activeElement === el) return;
+          var v = rec ? (rec[pair[0]] || '') : '';
+          if (el.value !== v) el.value = v;
+        });
+
+      var locked = rec && rec.status !== 'draft';
+      f.box.classList.toggle('locked', !!locked);
+      [f.problem, f.description, f.effect].forEach(function (el) { el.disabled = !!locked; });
+
+      f.count.textContent = f.description.value.length + ' / ' + MAX_DESC;
+      f.state.textContent = !rec ? ''
+        : rec.status === 'validated' ? 'retenue par la régie'
+        : rec.status === 'rejected' ? 'écartée'
+        : 'enregistré';
+    }
+
+    function loadProps() {
+      if (!(myIsland > 0)) return Promise.resolve();
+      return App.pb.collection('propositions').getFullList({
+        filter: 'island = ' + myIsland,
+        sort: 'created',
+        requestKey: null
+      }).then(function (rows) {
+        propRecords = rows.slice(0, PROP_SLOTS);
+        buildProps();
+        for (var s = 0; s < PROP_SLOTS; s++) fillProp(s, propRecords[s]);
+      }).catch(function (e) {
+        console.warn('propositions illisibles', e);
+      });
+    }
+
+    var propsSubscribed = false;
+    function watchProps() {
+      if (propsSubscribed) return;
+      propsSubscribed = true;
+      App.pb.collection('propositions').subscribe('*', function () {
+        loadProps();
+      }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
+    }
 
     App.start();
   </script>
