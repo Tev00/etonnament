@@ -434,13 +434,14 @@
     }
 
     function finish() {
-      App.pb.collection('participants')
-        .update(App.participant.id, { entry_done: true })
-        .catch(function (e) { console.warn('entry_done non enregistré', e); });
-
-      // L'affectation est calculée par le serveur, dans une transaction : deux
-      // personnes qui terminent en même temps ne peuvent pas déséquilibrer les
-      // îlots (spec §5). Idempotent, donc sans risque à réessayer.
+      /* `entry_done` n'est plus écrit ici. Il l'était par le participant, ce
+       * qui obligeait à laisser l'update de `participants` ouvert — et un
+       * update ouvert, c'est aussi `island` modifiable, donc chacun qui
+       * choisit sa table. Le hook s'en charge maintenant, côté serveur.
+       *
+       * L'affectation est calculée par le serveur, dans une transaction : deux
+       * personnes qui terminent en même temps ne peuvent pas déséquilibrer les
+       * îlots (spec §5). Idempotent, donc sans risque à réessayer. */
       App.assignIsland()
         .then(function (r) { setIsland(r.island); })
         .catch(function (e) { console.warn('îlot non attribué', e); });

@@ -10,8 +10,17 @@
 // compositions sont relues À L'INTÉRIEUR de celle-ci (spec §5).
 //
 // Écrit `island` via le DAO, qui contourne les règles d'API : la règle
-// d'update de `participants` reste fermée au participant, sans quoi chacun
-// choisirait son îlot.
+// d'update de `participants` doit rester fermée au participant, sans quoi
+// chacun choisit son îlot.
+//
+// ⚠️ Vérifié le 8 septembre : elle ne l'était PAS. Un participant pouvait
+// s'attribuer l'îlot de son choix d'un appel, ce qui vide l'algorithme
+// ci-dessous de son sens. La règle attendue est :
+//
+//     update : @request.auth.collectionName = "facilitators"
+//
+// Ce hook écrit donc aussi `entry_done`, qui était jusque-là écrit par le
+// client — c'était la seule raison de laisser la règle ouverte.
 
 routerAdd('POST', '/api/assign-island', function (e) {
   var participant = e.auth;
@@ -29,6 +38,12 @@ routerAdd('POST', '/api/assign-island', function (e) {
     // Idempotent : réappuyer sur le bouton ne rebat pas les cartes.
     var already = me.getInt('island');
     if (already > 0) {
+      // …mais on confirme la fin de mission : un participant peut avoir été
+      // placé à la main par la régie avant d'avoir fini de répondre.
+      if (!me.getBool('entry_done')) {
+        me.set('entry_done', true);
+        txApp.save(me);
+      }
       result = { island: already, assigned: false };
       return;
     }
@@ -90,6 +105,10 @@ routerAdd('POST', '/api/assign-island', function (e) {
     var chosen = leastFilled[Math.floor(Math.random() * leastFilled.length)];
 
     me.set('island', chosen);
+    // `entry_done` alimente la vue participant_count, donc le « 34 sur 58 »
+    // projeté. Écrit ici, côté serveur, il ne dépend plus d'une règle d'API
+    // ouverte au participant.
+    me.set('entry_done', true);
     txApp.save(me);
 
     result = { island: chosen, assigned: true };
