@@ -66,15 +66,41 @@ SKIP_CHECK=1 ./deploy-app.sh
 
 ## État
 
+Suit l'ordre de construction de `docs/app-spec.md` §9.
+
+**En place**
+
 - [x] Site vitrine en ligne sur Netlify
 - [x] Formulaire de contact relié au webhook Make
 - [x] Spécification technique de l'app (`docs/app-spec.md`)
-- [ ] Instance Scaleway créée et durcie
-- [ ] `app.etonnamment.fr` en ligne (page d'attente)
-- [ ] PocketBase installé, schéma créé
-- [ ] App : mission d'entrée, îlots, propositions, vote, feedback
-- [ ] Régie + projection
-- [ ] **Répétition générale avec de vrais téléphones**
+- [x] Instance Scaleway, `app.etonnamment.fr` en ligne, PocketBase installé
+- [x] Schéma créé, y compris les vues `entry_results`, `participant_count`
+      et `vote_results`
+- [x] 1. Les trois surfaces lisent `session` en temps réel
+- [x] 2. Compte anonyme, mission d'entrée, file d'attente d'écriture
+- [x] 3. Miroir de la mission d'entrée sur la projection
+- [x] 4. Hook d'assignation des îlots, écran d'îlot, réaffectation régie
+- [x] 5. Propositions et validation régie
+- [x] 6. Vote, classement projeté, pagination régie
+- [x] Régie derrière un compte `facilitators` (spec §8)
+- [x] Vérification statique avant déploiement (`check.sh`)
+
+**Reste à faire**
+
+- [ ] 7. Questionnaire de clôture (`feedback`)
+- [ ] 8. Console de régie : export papier des îlots et des énoncés (spec §7)
+- [ ] Audit des règles d'API restantes contre le tableau du §4 —
+      `propositions` et `session` sont faits, les autres non
+- [ ] Deuxième compte facilitateur (spec §1.8 : deux, pas un)
+- [ ] Confirmer le durcissement de l'instance (SSH, pare-feu, mises à jour) —
+      la machine tourne et sert en HTTPS, mais rien ici n'atteste du reste ;
+      voir `docs/SCALEWAY-SETUP.md`
+- [ ] Test de bout en bout des étapes 5 et 6 — jamais exercées avec de vrais
+      participants et les drapeaux ouverts
+- [ ] Test de fumée navigateur de la régie (clic sur chaque bouton), qui
+      attrape ce que le linter ne voit pas
+- [ ] **Répétition générale avec de vrais téléphones** — spec §9, non
+      négociable
 
 ---
 
