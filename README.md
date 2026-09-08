@@ -85,11 +85,11 @@ Suit l'ordre de construction de `docs/app-spec.md` §9.
 - [x] Régie derrière un compte `facilitators` (spec §8)
 - [x] 7. Questionnaire de clôture, compteur régie
 - [x] Vérification statique avant déploiement (`check.sh`)
+- [x] 8. Export papier des îlots et des énoncés
 - [x] Test de fumée navigateur des trois surfaces (`smoke.sh`)
 
 **Reste à faire**
 
-- [ ] 8. Console de régie : export papier des îlots et des énoncés (spec §7)
 - [ ] Ajouter `programme` aux valeurs de `projection_view` dans l'admin
       PocketBase — la valeur est prévue au §1.7 mais absente du schéma, donc
       le bouton correspondant de la régie renvoie 400 (le test de fumée
