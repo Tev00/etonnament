@@ -251,8 +251,32 @@
     catch (e) { console.warn('localStorage indisponible', e); }
   }
 
+  /* La file contient deux sortes d'écritures : les réponses de la mission
+   * d'entrée et les votes. Une entrée écrite avant l'ajout du vote n'a pas de
+   * `kind` — on la lit comme une réponse plutôt que de la jeter, sinon la
+   * répétition générale perdrait les réponses mises en file juste avant un
+   * déploiement. */
+  function normalize(item) {
+    if (item && item.kind) return item;
+    return { kind: 'answer', question: item.question, choice: item.choice };
+  }
+
+  // Deux entrées de même clé sont le même avis changé d'idée : la seconde
+  // remplace la première, et la file ne grossit pas hors ligne.
+  function queueKey(item) {
+    return item.kind === 'vote' ? 'vote:' + item.statement : 'answer:' + item.question;
+  }
+
+  function sameEntry(a, b) {
+    a = normalize(a); b = normalize(b);
+    if (queueKey(a) !== queueKey(b)) return false;
+    return a.kind === 'vote' ? a.value === b.value : a.choice === b.choice;
+  }
+
   function enqueue(item) {
-    var q = readQueue().filter(function (x) { return x.question !== item.question; });
+    var q = readQueue().filter(function (x) {
+      return queueKey(normalize(x)) !== queueKey(item);
+    });
     q.push(item);
     writeQueue(q);
   }
@@ -273,6 +297,31 @@
       .then(function (rec) { answerIds[question] = rec.id; return rec; });
   }
 
+  // Votes déjà en base pour ce participant : statement -> id d'enregistrement.
+  // Rempli par loadVotes(). Sans lui, un second envoi sur le même énoncé
+  // heurterait l'index unique (participant, statement) au lieu de corriger.
+  var voteIds = Object.create(null);
+
+  function pushVote(statement, value) {
+    var pid = pb.authStore.model && pb.authStore.model.id;
+    if (!pid) return Promise.reject(new Error('participant non authentifié'));
+
+    var existing = voteIds[statement];
+    if (existing) {
+      return pb.collection('votes').update(existing, { value: value });
+    }
+    return pb.collection('votes')
+      .create({ participant: pid, statement: statement, value: value })
+      .then(function (rec) { voteIds[statement] = rec.id; return rec; });
+  }
+
+  function sendQueued(item) {
+    item = normalize(item);
+    return item.kind === 'vote'
+      ? pushVote(item.statement, item.value)
+      : pushAnswer(item.question, item.choice);
+  }
+
   /** Rejoue la file. Silencieux : appelé souvent, échoue souvent, sans bruit. */
   function flushQueue() {
     var q = readQueue();
@@ -280,10 +329,10 @@
 
     return q.reduce(function (chain, item) {
       return chain.then(function () {
-        return pushAnswer(item.question, item.choice).then(function () {
-          writeQueue(readQueue().filter(function (x) {
-            return !(x.question === item.question && x.choice === item.choice);
-          }));
+        return sendQueued(item).then(function () {
+          // On ne retire que cette entrée-là : si l'avis a changé pendant
+          // l'envoi, la nouvelle version reste en file et partira ensuite.
+          writeQueue(readQueue().filter(function (x) { return !sameEntry(x, item); }));
         });
       });
     }, Promise.resolve()).catch(function () { /* on retentera */ });
@@ -420,7 +469,45 @@
     saveAnswer: function (question, choice) {
       return pushAnswer(question, choice).catch(function (err) {
         console.warn('réponse mise en file', err);
-        enqueue({ question: question, choice: choice });
+        enqueue({ kind: 'answer', question: question, choice: choice });
+      });
+    },
+
+    /* ---- Vote (spec §1.5) -------------------------------------------------
+     * `statements` n'est lisible par le participant que si `vote_open` est
+     * vrai : hors phase de vote, ceci renvoie une liste vide, ce qui est le
+     * comportement voulu. */
+    loadStatements: function () {
+      return pb.collection('statements').getFullList({
+        filter: 'active = true',
+        requestKey: null
+      });
+    },
+
+    /** Votes déjà émis : statement -> 'agree' | 'neutral' | 'disagree' | 'skip'.
+     *  Sert à reprendre la pile où on l'avait laissée après un rechargement. */
+    loadVotes: function () {
+      var pid = pb.authStore.model && pb.authStore.model.id;
+      if (!pid) return Promise.resolve({});
+      return pb.collection('votes').getFullList({
+        filter: 'participant="' + pid + '"',
+        requestKey: null
+      }).then(function (rows) {
+        var byStatement = {};
+        rows.forEach(function (r) {
+          voteIds[r.statement] = r.id;
+          byStatement[r.statement] = r.value;
+        });
+        return byStatement;
+      });
+    },
+
+    /** Enregistre un vote. Comme saveAnswer : ne rejette jamais, la carte
+     *  suivante s'affiche même si le wifi est tombé. */
+    saveVote: function (statement, value) {
+      return pushVote(statement, value).catch(function (err) {
+        console.warn('vote mis en file', err);
+        enqueue({ kind: 'vote', statement: statement, value: value });
       });
     },
 
@@ -446,13 +533,6 @@
       statusListeners.add(fn);
       fn(status);
       return function () { statusListeners.delete(fn); };
-    },
-
-    /** Écrit sur la session. Réservé à la régie. */
-    patchSession: function (data) {
-      if (!session) return Promise.reject(new Error('session inconnue'));
-      return pb.collection('session').update(session.id, data)
-        .then(function (record) { adopt(record); return record; });
     },
 
     start: start

@@ -85,6 +85,50 @@
       text-align: left;
     }
 
+    /* ---- résultats du vote ---- */
+    #voteview { display: none; width: min(1600px, 94vw); }
+    #voteview.is-active { display: block; }
+
+    .vrow { text-align: left; margin-bottom: clamp(14px, 2.6vh, 34px); }
+    .vtext {
+      font-size: clamp(17px, 2.1vw, 38px);
+      line-height: 1.22;
+      margin-bottom: 1vh;
+    }
+    /* Barre empilée : d'accord | motus | pas d'accord. La longueur des trois
+       segments dit la répartition, leur ordre reste le même d'une ligne à
+       l'autre pour qu'on puisse comparer les lignes d'un coup d'œil. */
+    .vbar {
+      display: flex;
+      height: clamp(16px, 2.6vh, 38px);
+      border-radius: 999px;
+      overflow: hidden;
+      background: #F1F1EF;
+    }
+    .vbar span { transition: width .6s cubic-bezier(.22,.61,.36,1); }
+    .v-agree    { background: var(--ok); }
+    .v-neutral  { background: #D9D9D5; }
+    .v-disagree { background: var(--accent); }
+
+    .vmeta {
+      display: flex;
+      gap: 2.2vw;
+      font-size: clamp(13px, 1.35vw, 24px);
+      color: var(--ink-muted);
+      margin-top: .7vh;
+    }
+    .vmeta .thin { opacity: .75; font-style: italic; }
+    .vfoot {
+      margin-top: 3vh;
+      font-size: clamp(14px, 1.5vw, 26px);
+      color: var(--ink-muted);
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+    }
+    .vlegend { display: flex; gap: 1.6vw; }
+    .vlegend i { display: inline-block; width: 1em; height: 1em; border-radius: 3px; vertical-align: -.1em; margin-right: .4em; }
+
     /* Le bandeau de connexion ne doit jamais masquer le contenu projeté :
        sur grand écran il devient un simple liseré en bas. */
     .conn {
@@ -110,6 +154,24 @@
     <h2 class="eq" id="eq"></h2>
     <div class="bars" id="bars"></div>
     <div class="etotal" id="etotal"></div>
+  </div>
+
+  <div id="voteview">
+    <!-- Le classement va du plus consensuel au plus clivant, et « consensuel »
+         inclut l'accord POUR comme l'accord CONTRE : un énoncé rejeté à
+         l'unanimité est consensuel. Titrer « ce sur quoi vous êtes d'accord »
+         mettrait donc en tête, sous ce titre, des énoncés que la salle rejette.
+         Les couleurs de la barre disent le sens ; le titre dit l'axe. -->
+    <div class="kicker" id="vkicker">Du plus consensuel au plus clivant</div>
+    <div id="vrows"></div>
+    <div class="vfoot">
+      <div class="vlegend">
+        <span><i class="v-agree"></i>d'accord</span>
+        <span><i class="v-neutral"></i>motus</span>
+        <span><i class="v-disagree"></i>pas d'accord</span>
+      </div>
+      <div id="vpage"></div>
+    </div>
   </div>
 
   <script src="shared/pocketbase.umd.js"></script>
@@ -223,10 +285,112 @@
       renderEntry();
     });
 
+    /* ---- Résultats du vote ------------------------------------------------
+     * Le tri se fait ICI, pas en SQL (spec §2.3) : on veut pouvoir l'ajuster
+     * le soir même sans migration.
+     *
+     *   n    = d'accord + pas d'accord      (« motus » ne compte pas au
+     *                                        dénominateur : c'est une absence
+     *                                        d'avis, pas un avis médian)
+     *   lean = |d'accord − pas d'accord| / n
+     *
+     * lean proche de 1 : la salle penche du même côté — consensuel.
+     * lean proche de 0 : la salle est coupée en deux — clivant.
+     * On projette du plus consensuel au plus clivant. */
+    var MIN_N = 8;        // en dessous, le bruit remonterait en tête
+    var PER_PAGE = 5;     // lisible depuis le fond de la salle
+
+    var voteview = document.getElementById('voteview');
+    var vrows = document.getElementById('vrows');
+    var vpage = document.getElementById('vpage');
+
+    var voteRows = [];
+    var votePage = 0;
+
+    function ranked() {
+      var scored = voteRows.map(function (r) {
+        var agree = r.agree || 0, disagree = r.disagree || 0, neutral = r.neutral || 0;
+        var n = agree + disagree;
+        return {
+          text: r.text,
+          agree: agree, neutral: neutral, disagree: disagree,
+          n: n,
+          lean: n ? Math.abs(agree - disagree) / n : 0,
+          thin: n < MIN_N
+        };
+      });
+
+      // Les énoncés sous le seuil ne sont pas classés — mais ils restent
+      // affichés, en fin de liste et signalés comme tels. Les faire
+      // disparaître serait très visible pour l'îlot qui les a écrits.
+      var solid = scored.filter(function (r) { return !r.thin; })
+                        .sort(function (a, b) { return b.lean - a.lean; });
+      var thin = scored.filter(function (r) { return r.thin; })
+                       .sort(function (a, b) { return b.n - a.n; });
+      return solid.concat(thin);
+    }
+
+    function renderVote() {
+      var all = ranked();
+      var pages = Math.max(1, Math.ceil(all.length / PER_PAGE));
+      var page = Math.min(Math.max(votePage, 0), pages - 1);
+      var slice = all.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+
+      vrows.textContent = '';
+      slice.forEach(function (r) {
+        var total = r.agree + r.neutral + r.disagree;
+        var pct = function (v) { return total ? (v / total) * 100 : 0; };
+
+        var row = document.createElement('div');
+        row.className = 'vrow';
+
+        var text = document.createElement('div');
+        text.className = 'vtext';
+        text.textContent = r.text;
+
+        var bar = document.createElement('div');
+        bar.className = 'vbar';
+        [['v-agree', r.agree], ['v-neutral', r.neutral], ['v-disagree', r.disagree]]
+          .forEach(function (pair) {
+            var seg = document.createElement('span');
+            seg.className = pair[0];
+            seg.style.width = pct(pair[1]) + '%';
+            bar.appendChild(seg);
+          });
+
+        var meta = document.createElement('div');
+        meta.className = 'vmeta';
+        meta.innerHTML =
+          '<span>' + r.agree + ' d’accord</span>' +
+          '<span>' + r.neutral + ' motus</span>' +
+          '<span>' + r.disagree + ' pas d’accord</span>' +
+          (r.thin ? '<span class="thin">trop peu de votes pour être classé</span>' : '');
+
+        row.appendChild(text);
+        row.appendChild(bar);
+        row.appendChild(meta);
+        vrows.appendChild(row);
+      });
+
+      vpage.textContent = pages > 1 ? (page + 1) + ' / ' + pages : '';
+    }
+
+    App.watchView('vote_results', 'votes', function (rows) {
+      voteRows = rows;
+      renderVote();
+    });
+
     App.onSession(function (s) {
       var showEntry = s.projection_view === 'entry';
+      var showVote = s.projection_view === 'vote';
       entryview.classList.toggle('is-active', showEntry);
-      stageview.classList.toggle('is-hidden', showEntry);
+      voteview.classList.toggle('is-active', showVote);
+      stageview.classList.toggle('is-hidden', showEntry || showVote);
+
+      if (typeof s.projection_page === 'number' && s.projection_page !== votePage) {
+        votePage = s.projection_page;
+      }
+      if (showVote) renderVote();
 
       if (s.projection_question && s.projection_question !== currentQuestion) {
         currentQuestion = s.projection_question;

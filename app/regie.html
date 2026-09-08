@@ -156,6 +156,20 @@
       <p class="note" style="margin-top:14px">Question projetée — <code>projection_question</code></p>
       <div class="grid" id="pquestions"></div>
       <p class="note" id="pqtext"></p>
+
+      <p class="note" style="margin-top:14px">
+        Page des résultats de vote — <code>projection_page</code>
+      </p>
+      <div class="grid">
+        <button id="pagePrev" type="button">← page précédente</button>
+        <button id="pageNext" type="button">page suivante →</button>
+        <button id="pageFirst" type="button">retour au début</button>
+      </div>
+      <p class="note">
+        Cinq énoncés par page, du plus consensuel au plus clivant. Les énoncés
+        recueillant moins de huit avis tranchés ne sont pas classés&nbsp;: ils
+        passent en fin de liste, signalés.
+      </p>
     </fieldset>
 
     <fieldset>
@@ -251,9 +265,11 @@
         ok();
         var s = App.session;
         if (!s) return;
-        var patch = {};
-        patch[key] = !s[key];
-        patch(patch).catch(fail);
+        /* Ne pas nommer cette variable `patch` : elle masquerait la fonction
+         * du même nom et le clic lèverait « patch is not a function ». */
+        var data = {};
+        data[key] = !s[key];
+        patch(data).catch(fail);
       });
       row.appendChild(b);
       flagsEl.appendChild(row);
@@ -285,6 +301,24 @@
         patch({ projection_question: q.key }).catch(fail);
       });
       pquestionsEl.appendChild(b);
+    });
+
+    /* Pagination des résultats projetés. La régie ne connaît pas le nombre de
+     * pages — c'est la projection qui range et borne. On envoie donc un numéro
+     * et l'écran s'en accommode : une page au-delà de la fin retombe sur la
+     * dernière plutôt que d'afficher du vide devant la salle. */
+    function pageBy(delta) {
+      var s = App.session;
+      if (!s) return;
+      var next = Math.max(0, (s.projection_page || 0) + delta);
+      ok();
+      patch({ projection_page: next }).catch(fail);
+    }
+    document.getElementById('pagePrev').addEventListener('click', function () { pageBy(-1); });
+    document.getElementById('pageNext').addEventListener('click', function () { pageBy(1); });
+    document.getElementById('pageFirst').addEventListener('click', function () {
+      ok();
+      patch({ projection_page: 0 }).catch(fail);
     });
 
     document.getElementById('saveIslands').addEventListener('click', function () {

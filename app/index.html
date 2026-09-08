@@ -112,6 +112,45 @@
     .prop-state { font-size: 13px; color: var(--ink-muted); }
     .prop.locked { opacity: .7; }
     .prop.locked input, .prop.locked textarea { background: #FAFAF8; }
+
+    /* ---- Vote (spec §1.5) ----
+       Une carte à la fois. Le pouce doit atteindre les quatre boutons sans
+       que l'énoncé sorte de l'écran : la carte grandit, la pile ne défile pas. */
+    .vote-progress {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 14px;
+      color: var(--ink-muted);
+      margin-bottom: 10px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      min-height: 190px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: clamp(19px, 4.6vw, 24px);
+      line-height: 1.35;
+    }
+    .vote-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .vote-actions button { padding: 16px 12px; font-weight: 500; }
+    /* « Passer » ne doit pas se cliquer par réflexe : il traverse la grille,
+       en retrait, sous les trois avis. */
+    .vote-actions .skip {
+      grid-column: 1 / -1;
+      color: var(--ink-muted);
+      border-style: dashed;
+    }
+    .vote-note { margin-top: 14px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -186,6 +225,29 @@
     <section class="panel" data-stage="vote">
       <h1>Vote</h1>
       <p class="closed" data-when-closed="vote_open">Le vote n'est pas encore ouvert.</p>
+
+      <div id="voteWrap" hidden>
+        <div class="vote-progress">
+          <span id="voteCount"></span>
+          <span class="saved muted" id="voteSaved"></span>
+        </div>
+        <div class="card" id="voteCard"></div>
+        <div class="vote-actions">
+          <button type="button" data-vote="agree">D'accord</button>
+          <button type="button" data-vote="disagree">Pas d'accord</button>
+          <button type="button" data-vote="neutral">Motus</button>
+          <button type="button" class="skip" data-vote="skip">Passer</button>
+        </div>
+        <p class="vote-note muted">
+          «&nbsp;Motus&nbsp;» compte comme un avis neutre. «&nbsp;Passer&nbsp;»
+          retire la carte sans compter.
+        </p>
+      </div>
+
+      <div id="voteDone" hidden>
+        <h2>Vous avez tout vu</h2>
+        <p class="muted">Merci. Regardez l'écran&nbsp;: les résultats arrivent.</p>
+      </div>
     </section>
 
     <section class="panel" data-stage="resultats">
@@ -241,6 +303,7 @@
               propsWrap.hidden = false;
               loadProps().then(watchProps);
             }
+            if (s.vote_open && !voteLoaded) loadVote().then(watchVote);
           })
           .catch(function () { /* on garde le dernier numéro connu */ });
       }
@@ -548,6 +611,121 @@
       App.pb.collection('propositions').subscribe('*', function () {
         loadProps();
       }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
+    }
+
+    /* ---- Vote -------------------------------------------------------------
+     * Une pile de cartes, une carte à la fois, quatre issues. `skip` est
+     * enregistré comme les autres pour ne pas re-servir la carte (spec §6.3),
+     * mais il est exclu des agrégats côté vue.
+     *
+     * L'ordre des cartes est propre à chaque participant. Deux raisons : les
+     * énoncés ne se remplissent pas tous par le début, et personne ne voit ses
+     * voisins voter dans le même ordre.
+     *
+     * L'ordre vient d'une clé calculée par carte, hash(id du participant + id
+     * de l'énoncé), et non d'un mélange de la liste. C'est ce qui le rend
+     * stable : un rechargement ne rebat pas la pile, et surtout, un énoncé
+     * validé par la régie APRÈS l'ouverture du vote vient s'insérer à sa place
+     * sans déplacer les cartes déjà vues. Un mélange par graine, lui, change
+     * toute la permutation dès que la liste s'allonge. */
+    var voteWrap = document.getElementById('voteWrap');
+    var voteDone = document.getElementById('voteDone');
+    var voteCard = document.getElementById('voteCard');
+    var voteCount = document.getElementById('voteCount');
+    var voteSaved = document.getElementById('voteSaved');
+    var voteBtns = Array.prototype.slice.call(
+      document.querySelectorAll('[data-vote]'));
+
+    var statements = [];      // tous les énoncés actifs, dans l'ordre du participant
+    var myVotes = {};         // statement id -> valeur déjà émise
+    var voteLoaded = false;
+
+    // Générateur déterministe : même participant, même ordre, à chaque visite.
+    function seedFrom(str) {
+      var h = 2166136261;
+      for (var i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function orderFor(list, meId) {
+      return list.slice().sort(function (a, b) {
+        var ka = seedFrom(meId + a.id), kb = seedFrom(meId + b.id);
+        // Égalité de hash : on retombe sur l'id, pour un ordre total.
+        return ka - kb || (a.id < b.id ? -1 : 1);
+      });
+    }
+
+    function pending() {
+      return statements.filter(function (st) { return !myVotes[st.id]; });
+    }
+
+    function renderVote() {
+      if (!voteLoaded) return;
+
+      var left = pending();
+      var seen = statements.length - left.length;
+
+      voteWrap.hidden = left.length === 0;
+      voteDone.hidden = left.length !== 0;
+
+      if (!left.length) return;
+
+      voteCard.textContent = left[0].text;
+      voteCount.textContent = (seen + 1) + ' / ' + statements.length;
+      voteBtns.forEach(function (b) { b.disabled = false; });
+    }
+
+    function castVote(value) {
+      var left = pending();
+      if (!left.length) return;
+      var st = left[0];
+
+      // On avance tout de suite : l'écriture peut partir en file, la carte
+      // suivante ne doit jamais attendre le réseau (spec §7).
+      myVotes[st.id] = value;
+      voteBtns.forEach(function (b) { b.disabled = true; });
+      renderVote();
+
+      App.saveVote(st.id, value).then(function () {
+        voteSaved.textContent = App.pendingWrites
+          ? App.pendingWrites + ' en attente d’envoi'
+          : '';
+      });
+    }
+
+    voteBtns.forEach(function (b) {
+      b.addEventListener('click', function () { castVote(b.dataset.vote); });
+    });
+
+    function loadVote() {
+      return Promise.all([App.loadStatements(), App.loadVotes()])
+        .then(function (r) {
+          var me = App.participant;
+          statements = orderFor(r[0], me ? me.id : 'x');
+          myVotes = r[1];
+          voteLoaded = true;
+          renderVote();
+        })
+        .catch(function (e) {
+          // `statements` n'est lisible que si vote_open est vrai : avant
+          // l'ouverture, cet échec est normal et silencieux.
+          console.warn('énoncés illisibles', e);
+        });
+    }
+
+    /* La régie peut valider une proposition après l'ouverture du vote. On
+     * relit la liste, en gardant l'ordre déjà tiré pour les cartes connues :
+     * le nouvel énoncé s'insère, la pile en cours ne se rebat pas. */
+    var voteSubscribed = false;
+    function watchVote() {
+      if (voteSubscribed) return;
+      voteSubscribed = true;
+      App.pb.collection('statements').subscribe('*', function () {
+        loadVote();
+      }).catch(function (e) { console.warn('abonnement énoncés refusé', e); });
     }
 
     App.start();
