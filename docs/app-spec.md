@@ -22,8 +22,17 @@ Motif : moins de pièces mobiles le soir même, et la projection tourne sur un
 navigateur inconnu (celui du vidéoprojecteur).
 
 **Temps réel.** Les trois surfaces s'abonnent à la collection `session`.
-La projection s'abonne en plus à `entry_results` et `vote_results`.
-Aucun polling, aucun bouton « rafraîchir ».
+
+⚠️ **Les collections « view » n'émettent pas d'événements temps réel.** Vérifié
+sur l'instance (8 sept.) : en s'abonnant simultanément à `entry_answers` et à
+`entry_results`, la création d'une réponse déclenche bien `event:entry_answers`
+et **rien** sur `entry_results`. C'est logique — PocketBase émet sur l'écriture
+d'un enregistrement, et personne n'écrit jamais dans une vue.
+
+La projection s'abonne donc aux collections **sources** (`entry_answers`,
+`votes`) et **relit la vue** à chaque événement. Le GET périodique de
+`app.js` sert de filet : si un événement se perd, l'écran se corrige tout seul
+en 15 s au lieu de rester figé.
 
 ---
 
