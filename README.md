@@ -4,7 +4,7 @@ Deux choses dans un seul dépôt, déployées à deux endroits différents.
 
 | Dossier | Contenu | Va sur | URL |
 |---|---|---|---|
-| `site/` | site vitrine | Netlify | `etonnament.fr` |
+| `site/` | site vitrine | Netlify | `etonnamment.fr` |
 | `app/` | app de la soirée | Scaleway | `app.etonnament.fr` |
 
 Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
