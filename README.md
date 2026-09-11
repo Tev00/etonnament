@@ -70,7 +70,7 @@ ce soit. Rollback : `git revert` puis relancer.
 
 ## À savoir
 
-- Le domaine s'écrit **`etonnament.fr`** (un seul « m » central), alors que la
+- Le domaine s'écrit **`etonnamment.fr`** (un seul « m » central), alors que la
   marque s'écrit « Étonnamment ». Ce n'est pas une faute de frappe.
 - `pb_data/` est dans `.gitignore` : il contiendra les réponses des
   participants. Ne jamais le committer.
