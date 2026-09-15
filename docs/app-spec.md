@@ -50,6 +50,8 @@ le token dans `localStorage`. Aucun email, aucun mot de passe saisi par l'humain
 | `password` | auth | généré : 32 car. aléatoires, stocké côté client |
 | `island` | number | 1..N, `null` tant que non assigné. **Écrit par le hook uniquement** |
 | `entry_done` | bool | mission d'entrée terminée |
+| `pair_color` | text | couleur hex de l'appariement du stage `consigne` (§2.5). Vide si non apparié |
+| `pair_code` | text | code à 6 caractères partagé avec le même partenaire, secours daltonisme |
 | `created` | auto | sert d'ordre d'arrivée |
 
 > **Pourquoi un compte auth plutôt qu'un simple UUID en localStorage ?**
@@ -136,6 +138,8 @@ Une seule ligne, `key = "main"`. Tout le monde la lit, seule la régie l'écrit.
 | `key` | text unique | `main` | |
 | `stage` | select | `accueil` | écran par défaut du participant (voir §3) |
 | `entry_open` | bool | `true` | mission d'entrée ouverte |
+| `matching_open` | bool | `false` | appariement par couleur ouvert (stage `consigne`, §2.5) |
+| `matching_view` | select | `idle` | `idle` \| `color_assignment` \| `searching` — les deux non-idle affichent la même chose côté participant (§2.5) |
 | `islands_count` | number | `10` | nombre d'îlots actifs |
 | `propositions_open` | bool | `false` | saisie des propositions |
 | `vote_open` | bool | `false` | vote Polis |
@@ -143,6 +147,7 @@ Une seule ligne, `key = "main"`. Tout le monde la lit, seule la régie l'écrit.
 | `projection_view` | select | `idle` | `idle` \| `entry` \| `vote` \| `programme` |
 | `projection_question` | text | `q1` | quelle question projeter |
 | `projection_page` | number | `0` | pagination des résultats de vote |
+| `text_summary` | text | `""` | résumé IA des propositions les plus consensuelles (§2.4), écrit par `/api/summarize-votes` |
 
 ### 1.8 `facilitators` — collection de type **auth**
 
@@ -203,11 +208,123 @@ sans migration :
 const n = agree + disagree;                 // neutral exclu du dénominateur
 const lean = n ? Math.abs(agree - disagree) / n : 0;
 // lean proche de 1 → consensuel     lean proche de 0 → clivant
-// Seuil : ignorer les énoncés avec n < 8, sinon le bruit remonte en tête.
+// Tous les énoncés sont classés ensemble, quel que soit n.
 ```
 
 Trier par `lean` décroissant donne l'ordre « du plus consensuel au plus clivant »
 du brief. Le clustering d'opinions (P1) n'est pas dans ce périmètre.
+
+### 2.4 Résumé IA du vote — `POST /api/summarize-votes`
+
+Hook facultatif (`server/pb_hooks/summarize-votes.pb.js`, auth `facilitators`),
+déclenché à la demande par un bouton régie, pas automatiquement :
+
+1. Recalcule les tallies à la main depuis `statements` (`active = true`) et
+   `votes` (`value != "skip"`) — PAS depuis la vue `vote_results` : le
+   binding DAO du hook (`$app.findRecordsByFilter`) renvoie les bonnes lignes
+   mais des colonnes agrégées (`SUM(CASE...)` dans le SQL de la vue) toujours
+   à 0, alors que la même vue est correcte via l'API REST normale (constaté
+   le 9 sept). Garde les `TOP_N` (5) propositions où `agree >= disagree`
+   triées par `agree / (agree + disagree)` décroissant — l'accord, pas le
+   consensus symétrique de `lean` en 2.3.
+2. Appelle l'API Messages d'Anthropic (`claude-haiku-4-5`, pas de streaming,
+   un seul message) avec ces propositions et le texte d'instruction lu dans
+   `server/pb_hooks/prompts/vote-summary.txt` — fichier à part, relu à chaque
+   appel, pour pouvoir l'ajuster sans toucher au code ni redémarrer PocketBase.
+3. Écrit le texte renvoyé dans `session.text_summary`.
+
+Les trois surfaces le lisent déjà en temps réel via `App.onSession` (spec §3) :
+rien de nouveau à câbler côté client au-delà de l'affichage. La projection
+l'affiche sous les résultats du vote, en second temps, dès qu'il existe.
+
+Clé `ANTHROPIC_API_KEY` fournie par `EnvironmentFile=-/opt/pocketbase/.env`
+dans `pocketbase.service` (le `-` la rend optionnelle : le service démarre
+même sans, le hook répond juste 500). Jamais committée.
+
+### 2.5 Appariement par couleur — `POST /api/assign-matching`
+
+Jeu de rencontre du stage `consigne` : ~70 participants retrouvent leur
+binôme en cherchant la même couleur de fond dans la salle, avec un code à 6
+caractères en secours (accessibilité daltonisme — jamais la couleur seule).
+Volontairement minimal : pas de collection `pairs`, pas d'étape de
+confirmation. Juste deux champs de plus sur `participants` (§1.1) et un écran
+plein cadre côté client.
+
+1. La régie ouvre `matching_open` (bascule générique, comme `vote_open`) puis
+   clique « Attribuer les paires », qui appelle ce hook
+   (`server/pb_hooks/assign-matching.pb.js`, auth `facilitators`) — **autant
+   de fois que nécessaire pendant la phase**, pas une seule (voir plus bas).
+2. Le hook lit les `participants` avec `entry_done = true` ET **sans
+   `pair_color`** — pas tout le monde, exprès (voir plus bas) —, les mélange
+   (Fisher-Yates — pas l'ordre d'arrivée, qui grouperait les gens venus
+   ensemble), les découpe en paires, génère une couleur (teintes réparties
+   sur 360°, luminosité 34-56% pour rester lisible en texte blanc quelle que
+   soit la teinte) et un code à 6 caractères par paire, et écrit les deux sur
+   les deux `participants` de chaque paire.
+3. **Nombre impair** : le dernier tiré ne reçoit ni couleur ni code — pas une
+   couleur que personne d'autre ne porte, ce qui le laisserait chercher un
+   match inexistant. Reste candidat pour l'appel suivant, donc se résorbe
+   tout seul dès qu'une personne de plus finit la mission. Voir §5.1 côté
+   participant et le roster régie pour la résolution manuelle si besoin.
+4. Le hook met `session.matching_view = 'searching'`. `color_assignment`
+   existe dans le schéma mais n'est pas déclenché séparément : les deux
+   valeurs non-`idle` affichent la même chose côté participant (décision du
+   9 sept — un seul geste régie, pas de temps de « préparez-vous »).
+
+**Deux bugs réels trouvés le 10 sept lors du premier vrai essai** (« plusieurs
+participants sans paire », rapporté par Paul — reproduit à ~50% de la salle) :
+
+- **Le hook rebattait TOUT LE MONDE à chaque appel**, pas seulement les
+  nouveaux arrivants. Personne ne finit la mission d'entrée à la même
+  seconde, donc la régie appuie forcément plusieurs fois sur ce bouton — et
+  chaque rappel réattribuait une nouvelle couleur à des gens déjà appariés.
+  Le téléphone de quelqu'un qui n'avait pas immédiatement rechargé
+  affichait alors sa couleur devenue périmée : personne d'autre dans la
+  salle ne la portait plus, indiscernable de « jamais apparié ». Corrigé en
+  rendant le hook incrémental (§2 ci-dessus) : il ne touche jamais un
+  `participants` qui a déjà une `pair_color`.
+- **`txApp.findRecordsByFilter(..., 0, 0)` À L'INTÉRIEUR d'une transaction
+  peut renvoyer le même enregistrement plusieurs fois** — confirmé avec un
+  export de diagnostic montrant un même id présent 2-3 fois dans le
+  résultat. Chaque doublon repassait par `set()`+`save()`, donc la dernière
+  occurrence d'une personne écrasait sa propre paire déjà posée par une
+  occurrence précédente, laissant son vrai partenaire orphelin — un second
+  bug indépendant du premier, qui survivait même après le correctif
+  incrémental. Corrigé en passant une limite explicite (500, très au-dessus
+  de tout effectif réel) plutôt que 0, plus un dédoublonnage par id en
+  filet. **Le même idiome (`limit=0`) existe aussi dans
+  `assign-island.pb.js`** (`members`, une vraie collection comptée par
+  `size[isl]++` — un doublon y aurait faussé l'équilibrage des îlots pour de
+  vrai, silencieusement) **et `summarize-votes.pb.js`** (`statements`/
+  `votes`, hors transaction — risque non confirmé mais protégé par
+  précaution) : les trois ont reçu la même limite explicite le même jour.
+
+Côté participant (`app/index.html`), un overlay plein écran (`#matchingOverlay`,
+en dehors de `.wrap`, par-dessus logo et bandeau de connexion) s'affiche
+quand `stage === 'consigne' && matching_open === true && matching_view !==
+'idle'`. La couleur et le code viennent de `me.pair_color`/`me.pair_code`,
+lus via `App.refreshParticipant()` — déjà rappelé à chaque session, rien de
+nouveau à interroger (même plomberie que le numéro d'îlot). Sans
+`pair_color` (nombre impair), l'écran affiche « Pas encore de paire — allez
+voir la régie » plutôt qu'un fond vide qui a l'air cassé.
+
+Côté régie (10 sept), le roster n'est plus lecture seule : chaque personne a
+son propre menu (déplacer vers un autre groupe — y compris un groupe déjà
+formé, ce qui crée un trio sans rien de spécial à coder côté serveur — ou
+« sans paire », ou « nouveau groupe »). Écrit en client-side direct
+(`R().collection('participants').update(...)`, comme le déplacement
+manuel d'îlot déjà en place), pas via un hook : la règle d'update de
+`participants` est déjà ouverte aux facilitators pour tous les champs.
+« Nouveau groupe » génère une couleur/code à part côté régie (teinte
+aléatoire, pas la répartition 360°/n du hook) — ajustement manuel rare et
+unitaire, pas besoin de reproduire l'algorithme exact.
+
+Chaque écran participant affiche aussi, en permanence et en tout petit en
+bas d'écran (`#participantId`), les 4 derniers caractères de son
+`username` — la même règle que `shortName()` dans regie.html, pour que
+régie et participant lisent la même chaîne sans conversion mentale. Sert à
+localiser quelqu'un dans le roster (paire cassée, îlot égaré), pas à
+attirer l'œil du participant lui-même.
 
 ---
 

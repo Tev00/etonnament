@@ -1,0 +1,340 @@
+ÉTONNAMMENT D'ACCORD — INVENTAIRE DES TEXTES DE L'INTERFACE
+Généré le 10 septembre 2026. Sert à relire et ajuster la copie sans avoir
+à fouiller le code — donnez-moi la liste des changements (texte actuel →
+nouveau texte) et je les reporte dans les fichiers.
+
+COMMENT LIRE CE FICHIER
+------------------------------------------------------------------------------
+- Chaque texte est entre guillemets, suivi au besoin d'une note entre
+  crochets indiquant où il apparaît ou dans quelles conditions.
+- "{n}" ou "{variable}" veut dire que cette partie est calculée (un
+  compteur, un pseudo, une date...) — éditez le texte fixe autour, pas la
+  partie entre accolades.
+- Un ⚠️ signale un texte qui a une conséquence au-delà de l'affichage
+  (souvent : ne pas changer L'ORDRE ou LA CLÉ, le texte lui-même est
+  toujours libre à changer).
+- Les textes de régie sont d'un usage interne (vous et l'équipe) — moins
+  prioritaires à peaufiner que ce que voient les participants et la salle.
+
+
+================================================================================
+1. APP PARTICIPANT — app/index.html (+ questions dans shared/questions.js)
+================================================================================
+
+--- Bandeau de connexion (tout en haut, visible seulement en cas de souci) ---
+"Connexion…"
+"Connexion perdue — la page se rétablira toute seule"
+
+--- Accueil (stage = accueil) ---
+"Bienvenue"
+"La soirée va commencer. Gardez cette page ouverte : elle se mettra à jour
+toute seule."
+[image accueil.png sous le texte]
+
+--- Mission d'entrée (stage = mission) ---
+"La mission d'entrée est fermée pour le moment."  [tant que non ouverte]
+"Question {n} sur {total}"  [au-dessus de chaque question]
+"Retour"  [bouton]
+"{n} réponse(s) en attente d'envoi"  [si la connexion traîne]
+
+Fin de la mission :
+"C'est noté"
+"Merci. Gardez cette page ouverte : la suite s'affichera ici."
+
+Si le compte ne peut pas être créé (réseau) :
+"Connexion impossible"
+"Rechargez la page dans un instant."
+
+--- Les 7 questions de la mission d'entrée ---
+Q1 "Dans les douze derniers mois, vous est-il arrivé d'éviter un sujet
+   politique avec un proche pour ne pas créer de tension ?"
+   → Souvent / Une fois ou deux / Jamais
+
+Q2 "Vous est-il déjà arrivé de changer d'avis sur un sujet politique
+   important à la suite d'une conversation ?"
+   → Oui / Non / Je ne sais pas
+
+Q3 "Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par
+   crainte de la réaction ?"
+   → Oui / Non
+   ⚠️ Reprise mot pour mot par F2 côté questionnaire de clôture (mesure
+   avant/après) — si vous changez le sens de cette question, changez F2
+   pareil ou la comparaison ne veut plus rien dire.
+
+Q4 "Quand vous entendez le mot « débat », qu'est-ce qui vous vient en
+   premier ?"
+   → Un affrontement / Un échange utile / Un spectacle / Autre
+   ⚠️ Alimente l'algorithme de répartition en îlots. Le texte des options
+   est libre ; ne touchez pas aux clés (q4_c1...) ni à l'ordre.
+
+Q5 "Avez-vous le sentiment que votre voix compte dans les décisions
+   politiques ?"
+   → Oui / Plutôt non / Pas du tout
+
+Q6 "Connaissez-vous personnellement quelqu'un dont les convictions
+   politiques sont très éloignées des vôtres, et avec qui vous discutez
+   régulièrement ?"
+   → Oui / Non
+   ⚠️ Alimente aussi l'algorithme des îlots, même remarque que Q4.
+
+Q7 "Qu'est-ce qui vous a fait venir ce soir ?"
+   → La méthode / Le sujet / J'accompagne quelqu'un / Je veux contribuer
+   au projet
+
+--- Rencontre (stage = consigne) — mode "question", quand l'appariement
+    couleur n'est PAS activé par la régie ---
+"Trouvez quelqu'un qui…"
+"…a répondu « {réponse} » comme vous à : {texte de la question}"
+"…a répondu autrement que vous."  [si personne d'autre n'a cette réponse]
+"Puis rejoignez votre îlot."
+
+--- Rencontre (stage = consigne) — mode "appariement par couleur", quand
+    la régie l'active (spec §2.5) ---
+"Trouvez la personne qui a la même couleur."  [sous le grand code à 6
+caractères]
+"Pas encore de paire — allez voir la régie."  [si nombre impair ou pas
+encore apparié]
+
+--- Îlot (stage = ilots) ---
+"Votre îlot"
+"Rejoignez la table qui porte ce numéro."
+[image Island 3.png sous le texte]
+Badge permanent en bas d'écran (visible à tout moment, pas juste sur cet
+écran) : "Îlot {n}"
+
+--- Propositions (stage = propositions) ---
+"Vos propositions"
+"La saisie n'est pas encore ouverte."
+"Deux propositions pour votre îlot. N'importe qui à votre table peut les
+écrire ou les corriger — le texte se synchronise entre vos téléphones."
+
+Par proposition (×2) :
+  "Proposition 1" / "Proposition 2"
+  "Le problème visé"
+  "La proposition, en deux phrases"
+  "L'effet attendu"
+  "{n} / 300"  [compteur de caractères]
+  "modification en cours…"
+  "✓ enregistré"
+  "non enregistré — la saisie est peut-être fermée"
+  "retenue par la régie"  [une fois validée côté régie]
+  "écartée"  [si la régie l'écarte]
+
+--- Vote (stage = vote) ---
+"Vote"
+"Le vote n'est pas encore ouvert."
+Boutons : "D'accord" (icône Vote - Yes.png) / "Pas d'accord" (icône
+Vote - No.png) / "Motus" (icône Vote - Motus.png) / "Passer"
+"« Motus » compte comme un avis neutre. « Passer » retire la carte sans
+compter."
+"{n} en attente d'envoi"
+"Vous avez tout vu"
+"Merci. Regardez l'écran : les résultats arrivent."
+
+--- Résultats (stage = resultats) ---
+"Regardez l'écran"
+"Les résultats sont projetés dans la salle."
+
+--- Clôture (stage = cloture) ---
+[image feedback.png en haut de l'écran]
+"Avant de partir"
+"Le questionnaire n'est pas encore ouvert."
+"Six questions, deux minutes — les deux premières d'un seul doigt.
+Répondez à ce que vous voulez, rien n'est obligatoire. Vos réponses
+restent anonymes."
+"Envoyer"  [bouton]
+"enregistrement…"
+"en attente de réseau — ne fermez pas cette page"
+"enregistré"
+"Merci"
+"C'est envoyé. Bonne soirée — et à bientôt sur etonnamment.fr."
+
+Trois cartes tout en bas de cet écran :
+  "Notre site" → ouvre etonnamment.fr  [icône Square logo.png]
+  "Notre déclaration d'aujourd'hui" → ouvre l'image "Etonnamment
+    d'accord.png" en plein écran  [icône Download.png]
+    "Appuyez longuement sur l'image pour l'enregistrer — touchez ailleurs
+    pour fermer."
+  "Sur les réseaux" → ouvre instagram.com/nuances_org  [icône
+    instagram.png]
+
+--- Les 6 questions du questionnaire de clôture ---
+F1 "Ce soir, avez-vous entendu un point de vue qui vous a surpris ?"
+   → Oui, plusieurs / Oui, un / Non
+
+F2 "Ce soir, avez-vous pu dire ce que vous pensiez, sans vous retenir ?"
+   → Oui / En partie / Non
+   ⚠️ Miroir de Q3 (mission d'entrée) — seule vraie mesure avant/après du
+   questionnaire. Garder le même sens que Q3 si vous éditez.
+
+F3 "Qu'est-ce qui a le mieux marché, selon vous ?"  [texte libre — indice
+   affiché dans le champ vide : "Une ligne suffit."]
+
+F4 "Qu'est-ce qui a coincé ?"  [texte libre — indice : "Même une petite
+   chose."]
+
+F5 "Seriez-vous prêt·e à revenir, ou à amener quelqu'un ?"
+   → Oui, et j'amènerais quelqu'un / Oui, je reviendrais / Peut-être / Non
+
+F6 "Qu'est-ce que vous diriez à quelqu'un pour l'inviter au prochain
+   débat ?"  [texte libre — indice : "Vos mots à vous — ce sont les
+   meilleurs pour inviter."]
+
+
+================================================================================
+2. GRAND ÉCRAN / PROJECTION — app/projection.html
+================================================================================
+
+--- Titre affiché par étape (le plus gros texte, centré à l'écran) ---
+Format : kicker (petit, en haut) / titre (très grand) / sous-titre (sous
+le titre)
+
+accueil       "Bienvenue" / "Étonnamment d'accord" / "La soirée va
+              commencer"
+              [+ QR code sous le titre]
+mission       "Mission d'entrée" / "Sortez votre téléphone" /
+              "app.etonnamment.fr"
+consigne      "Rencontre" / "Trouvez quelqu'un qui…" / (pas de sous-titre)
+              [+ pendant l'appariement couleur : images d'îlots qui
+              tournent toutes les 4 secondes]
+ilots         "Îlots" / "Rejoignez votre îlot" / (pas de sous-titre)
+propositions  "Propositions" / "À vous d'écrire" / "Deux propositions par
+              îlot"
+vote          "Vote" / "Votez" / "Sur votre téléphone"
+resultats     "Résultats" / "Ce sur quoi vous êtes (étonnamment!)
+              d'accord" / (pas de sous-titre)
+cloture       "Merci" / "À bientôt" / (pas de sous-titre)
+              [+ image feedback.png en grand]
+
+--- Bandeau de connexion (liseré tout en bas, seulement si souci réseau) ---
+"Connexion…"
+"Reconnexion en cours — affichage figé sur le dernier état connu"
+
+--- Miroir de la mission d'entrée (régie bascule sur cette vue) ---
+"Mission d'entrée"  [titre fixe de cette vue]
+"{n} réponse(s) — {n} participant(s)"
+
+--- Résultats du vote (régie bascule sur cette vue) ---
+"Du plus consensuel au plus clivant"  [titre de la page]
+Légende des couleurs : "d'accord" / "motus" / "pas d'accord"
+Sous chaque proposition : "{n} d'accord"  "{n} motus"  "{n} pas d'accord"
+"Ce qui ressort"  [titre du résumé IA — apparaît seulement une fois généré
+par la régie ; le texte du résumé lui-même vient du modèle, réglé par
+server/pb_hooks/prompts/vote-summary.txt, PAS par ce fichier]
+
+
+================================================================================
+3. RÉGIE — app/regie.html (usage interne, moins prioritaire à peaufiner)
+================================================================================
+
+--- Connexion ---
+"Régie"
+"Console du facilitateur. Connexion requise."
+"Adresse" / "Mot de passe" / "Se connecter" / "Connexion…"
+"Adresse ou mot de passe incorrect."
+"Connexion impossible : {détail}"
+"Se déconnecter"
+
+--- Bandeau de connexion (une fois dans la console, si souci réseau) ---
+"Connexion…"
+"Connexion perdue — vos commandes ne partiront pas"  [différent du message
+côté participant/écran — ici ça prévient que CLIQUER ne fera rien tant que
+ce n'est pas revenu]
+
+--- Les 3 onglets ---
+"Affichage" / "Appariement" / "Propositions & résumé"
+
+--- Onglet Affichage ---
+Écran des participants — boutons de stage : accueil / mission / consigne /
+  ilots / propositions / vote / resultats / cloture  [noms techniques, pas
+  vraiment de la "copie" à peaufiner]
+
+Ce qui est permis — 5 bascules : "Mission d'entrée" / "Appariement par
+  couleur (consigne)" / "Saisie des propositions" / "Vote" / "Questionnaire
+  de clôture"
+  "Indépendants du stage à dessein : rouvrir la mission d'entrée pour un
+  retardataire ne fait pas reculer toute la salle."
+  Chaque bascule affiche "ouvert" ou "fermé"
+
+Projection — boutons de vue : idle / entry / vote / programme
+  "← page précédente" / "page suivante →" / "retour au début"
+  "Cinq énoncés par page, du plus consensuel au plus clivant."
+
+Clôture — "Combien de questionnaires sont rentrés. Sert à décider quand
+  fermer, pas à lire les réponses : le texte libre se lit après la
+  soirée, dans l'admin PocketBase."
+  "Rafraîchir"
+
+--- Onglet Appariement ---
+Appariement par couleur —
+  "Attribue une couleur et un code à 6 caractères à chaque paire —
+  appelable plusieurs fois, ne touche jamais quelqu'un déjà apparié (spec
+  §2.5). Pas d'étape de confirmation côté participant : c'est un jeu à
+  faire dans la salle, pas un formulaire."
+  "Chaque ligne ci-dessous a son propre menu : déplacer quelqu'un vers un
+  autre groupe (y compris un groupe déjà formé, pour créer un trio),
+  l'isoler dans un nouveau groupe, ou le repasser sans paire."
+  "Attribuer les paires" / "Terminer (retour à idle)"
+  Menu par personne : "{code} ({n} membre(s))" / "— nouveau groupe —" /
+  "— sans paire —"
+  "{n} groupe(s), {n} sans paire"
+
+Îlots —
+  "Nombre d'îlots actifs" / "Enregistrer"
+  "Remplissage —" / "Rafraîchir"
+  "sans îlot" (îlot 0)
+  "Déplacer {pseudo} vers quel îlot ? (0 = aucun)"  [fenêtre native du
+  navigateur, pas une vraie boîte de dialogue stylée]
+
+--- Onglet Propositions & résumé ---
+Résumé IA du vote —
+  "Demande à Claude un court résumé des propositions les plus
+  consensuelles et l'affiche en direct sur la projection, sous les
+  résultats du vote. Le texte envoyé au modèle est éditable sans
+  redéploiement de code — server/pb_hooks/prompts/vote-summary.txt sur le
+  serveur."
+  "Générer le résumé" / "Vider (masquer sur la projection)"
+  "Génération en cours…" / "Résumé généré — visible sur la projection."
+
+Export papier —
+  "Les îlots avec leurs membres, et les énoncés retenus. À sortir vers
+  20h00, avant le vote : c'est le moment où une panne coûterait le plus
+  cher (spec §7). S'il n'y a pas d'imprimante, « enregistrer en PDF »
+  dans la boîte d'impression fait le même office."
+  "Préparer et imprimer"
+  "{n} participant(s), {n} énoncé(s)"
+  Feuille imprimée : "Étonnamment d'accord" / "Édité le {date}" / section
+  "Îlots" ("Sans îlot" ou "Îlot {n}" — "{n} personne(s)" ou "— vide") /
+  section "Énoncés soumis au vote ({n})" ("Aucun énoncé actif. Rien ne
+  partira au vote en l'état." si vide)
+
+Propositions —
+  "Valider crée un énoncé sans numéro d'îlot et l'active pour le vote.
+  C'est cette copie qui coupe le lien : à partir de là, plus rien ne dit
+  d'où vient la proposition."
+  "Rafraîchir"
+  "{n} en attente, {n} retenue(s), {n} écartée(s)"
+  Par proposition : "Îlot {n}", étiquette de statut (⚠️ affiche
+  actuellement le mot brut "draft" / "validated" / "rejected", pas encore
+  traduit en français — dites-moi si vous voulez "en attente" / "retenue"
+  / "écartée" à la place), "Problème : {…} · Effet : {…}"
+  "Valider → énoncé" / "Écarter" / "Remettre en attente"
+
+--- Note permanente en bas de la régie ---
+"⚠️ Les règles d'API sont ouvertes pour le développement. À fermer avant
+l'événement — voir docs/app-spec.md §4."
+[Probablement à retirer avant le vrai événement plutôt qu'à reformuler —
+ signalé ici pour mémoire, pas vraiment un texte à peaufiner.]
+
+
+================================================================================
+POUR ME DONNER VOS CHANGEMENTS
+================================================================================
+Le plus simple : citez le texte actuel (ou juste un bout reconnaissable)
+et le nouveau texte, un par ligne. Par exemple :
+
+  "Bienvenue" → "Bonsoir !"
+  "Trouvez quelqu'un qui…" → "Allez à la rencontre de…"
+
+Je les remplace dans le bon fichier et fais tourner ./check.sh avant de
+vous dire que c'est prêt à déployer.

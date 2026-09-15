@@ -30,7 +30,9 @@ Elles ne se parlent pas et ne tombent pas ensemble — c'est voulu. Voir
 │   └── app-spec.md        schéma PocketBase, règles d'API, phases
 ├── check.sh               vérification statique (ESLint) avant déploiement
 ├── eslint.config.mjs
-├── deploy-app.sh
+├── deploy-app.sh          app/ → app.etonnamment.fr/app/ (Caddy, statique)
+├── deploy-hooks.sh        server/pb_hooks/ → PocketBase (redémarre le service)
+├── deploy-prompts.sh      server/pb_hooks/prompts/ seul (pas de redémarrage)
 └── netlify.toml           publish = "site"
 ```
 
@@ -60,6 +62,24 @@ ne permet pas à npx de tourner ou qu'un correctif doit partir immédiatement :
 
 ```bash
 SKIP_CHECK=1 ./deploy-app.sh
+```
+
+**Les hooks PocketBase** (`server/pb_hooks/`) — script séparé à dessein :
+c'est du code exécuté par PocketBase, pas du statique servi par Caddy, et
+l'installer redémarre le service (coupe les connexions SSE de toute la
+salle le temps d'un battement de cil) :
+
+```bash
+./deploy-hooks.sh
+```
+
+**Juste un prompt** (`server/pb_hooks/prompts/`, ex. `vote-summary.txt`) —
+ni `deploy-app.sh` ni `deploy-hooks.sh` : le premier ne touche jamais
+`server/`, le second redémarre PocketBase pour rien puisque les hooks
+relisent ces fichiers à chaque appel, pas seulement au démarrage :
+
+```bash
+./deploy-prompts.sh
 ```
 
 ---
