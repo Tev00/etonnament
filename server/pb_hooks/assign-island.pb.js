@@ -55,8 +55,14 @@ routerAdd('POST', '/api/assign-island', function (e) {
     }
 
     // --- réponses Q4 et Q6, qui portent la diversité recherchée -------------
+    // limit=500 et pas 0 : trouvé le 10 sept dans assign-matching.pb.js,
+    // txApp.findRecordsByFilter(..., 0, 0) À L'INTÉRIEUR d'une transaction
+    // peut renvoyer le même enregistrement plusieurs fois. Sans effet ici
+    // (mêmes q4/q6 réécrits sur la même clé), mais `members` juste en
+    // dessous fait des size[isl]++ — un doublon y fausserait le compte pour
+    // de vrai. Même limite explicite aux deux, par cohérence.
     var answers = txApp.findRecordsByFilter(
-      'entry_answers', 'question = "q4" || question = "q6"', '', 0, 0
+      'entry_answers', 'question = "q4" || question = "q6"', '', 500, 0
     );
 
     var byParticipant = {};       // id -> { q4, q6 }
@@ -69,7 +75,14 @@ routerAdd('POST', '/api/assign-island', function (e) {
     var mine = byParticipant[me.id] || {};
 
     // --- composition actuelle des îlots ------------------------------------
-    var members = txApp.findRecordsByFilter('participants', 'island > 0', '', 0, 0);
+    var rawMembers = txApp.findRecordsByFilter('participants', 'island > 0', '', 500, 0);
+    var seenMembers = {};
+    var members = [];
+    rawMembers.forEach(function (r) {
+      if (seenMembers[r.id]) return;
+      seenMembers[r.id] = true;
+      members.push(r);
+    });
 
     var size = {}, same4 = {}, same6 = {};
     for (var n = 1; n <= islandsCount; n++) { size[n] = 0; same4[n] = 0; same6[n] = 0; }

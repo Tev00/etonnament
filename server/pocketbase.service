@@ -17,6 +17,11 @@ User=pocketbase
 Group=pocketbase
 WorkingDirectory=/opt/pocketbase
 
+# Secrets for pb_hooks (e.g. ANTHROPIC_API_KEY) — never committed. The
+# leading "-" makes the file optional: the service still starts if it's
+# missing, it just runs without whatever hook needs that secret.
+EnvironmentFile=-/opt/pocketbase/.env
+
 # Bound to localhost ONLY. Caddy is the sole public entry point, which means
 # TLS is handled in one place and PocketBase is never directly reachable.
 ExecStart=/opt/pocketbase/pocketbase serve --http=127.0.0.1:8090

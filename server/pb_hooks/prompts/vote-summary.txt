@@ -1,0 +1,6 @@
+Résume en français, en 10 phrases, sur quoi les participants sont le plus d'accord parmi les propositions votées aujourd'hui — le plus fort consensus,
+pas les résultats un par un. Essayer de synthétiser / grouper le plus possible les propositions populaires similaires. 
+Le texte sera affiché tel quel sur grand écran devant la salle : pas de puces, pas de chiffres, pas de titre, aucune mise en forme markdown (pas de #, pas de **gras**) — seulement les phrases, un ton simple et direct.
+
+Le format devrait être une liste de recommandations commme pour un texte de loi. 
+La dernière phrase devrait être : "Le peuple a parlé (et est étonnamment d'accord)."
