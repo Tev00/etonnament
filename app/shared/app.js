@@ -332,6 +332,13 @@
    * personne. Même fragilité que l'identité elle-même, et acceptée pour les
    * mêmes raisons (spec §7). */
   var FEEDBACK_KEY = 'etonnamment.feedback';
+  // Distinct de FEEDBACK_KEY à dessein : celui-ci existe dès la première
+  // réponse (le premier des « deux filets » ci-dessus), donc s'en servir
+  // pour « déjà envoyé » fermait le formulaire en cours de remplissage au
+  // moindre re-rendu — et `App.onSession` en déclenche un à chaque
+  // changement de session, que la régie provoque sans arrêt. Ce second flag
+  // n'est écrit qu'au clic explicite sur « Envoyer ».
+  var FEEDBACK_SENT_KEY = 'etonnamment.feedback.sent';
 
   function readFeedbackId() {
     try { return global.localStorage.getItem(FEEDBACK_KEY); }
@@ -340,6 +347,16 @@
 
   function writeFeedbackId(id) {
     try { global.localStorage.setItem(FEEDBACK_KEY, id); }
+    catch (e) { console.warn('localStorage indisponible', e); }
+  }
+
+  function readFeedbackSent() {
+    try { return global.localStorage.getItem(FEEDBACK_SENT_KEY) === '1'; }
+    catch (e) { return false; }
+  }
+
+  function writeFeedbackSent() {
+    try { global.localStorage.setItem(FEEDBACK_SENT_KEY, '1'); }
     catch (e) { console.warn('localStorage indisponible', e); }
   }
 
@@ -564,10 +581,15 @@
 
     /* ---- Clôture (spec §1.6) --------------------------------------------- */
 
-    /** Vrai si ce navigateur a déjà envoyé le questionnaire. Le participant ne
-     *  peut pas relire son enregistrement — la règle de lecture est réservée
-     *  à la régie — donc c'est tout ce qu'on peut savoir de son côté. */
-    get feedbackSent() { return !!readFeedbackId(); },
+    /** Vrai seulement après un clic explicite sur « Envoyer » — pas dès la
+     *  première réponse partielle enregistrée en cours de route. Le
+     *  participant ne peut pas relire son enregistrement — la règle de
+     *  lecture est réservée à la régie — donc c'est tout ce qu'on peut
+     *  savoir de son côté. */
+    get feedbackSent() { return readFeedbackSent(); },
+
+    /** À appeler au clic sur « Envoyer », une fois l'enregistrement confirmé. */
+    markFeedbackSent: function () { writeFeedbackSent(); },
 
     /** Enregistre le questionnaire de clôture. Ne rejette jamais. */
     saveFeedback: function (answers) {

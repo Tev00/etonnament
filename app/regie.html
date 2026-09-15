@@ -22,6 +22,10 @@
       margin: 0 0 20px;
     }
     legend { font-weight: 600; padding: 0 6px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .tab { font-weight: 600; padding: 10px 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.is-active { display: block; }
     .grid { display: flex; flex-wrap: wrap; gap: 8px; }
     .flags { display: grid; gap: 10px; }
     .flag {
@@ -35,7 +39,7 @@
     .flag:last-child { border-bottom: 0; padding-bottom: 0; }
     .flag code { font-size: 14px; color: var(--ink-muted); }
     .err {
-      background: #FDECEA;
+      background: #F5E3DD;
       border-left: 3px solid var(--warn);
       color: var(--warn);
       padding: 10px 14px;
@@ -63,6 +67,21 @@
       border-radius: 999px;
     }
     .unassigned { color: var(--warn); }
+
+    .pair-group { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .pair-group-head {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; margin-bottom: 4px;
+    }
+    .pair-swatch { width: 1.1em; height: 1.1em; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+    .pair-code { font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: .04em; }
+    .pair-count { color: var(--ink-muted); font-size: 13px; }
+    .pair-member-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 3px 0 3px 22px; font-size: 13px;
+    }
+    .pair-member-row .pair-member-name { min-width: 4.5em; }
+    .pair-member-row select { font-size: 12px; padding: 2px 4px; max-width: 55%; }
 
     .prop-row {
       border: 1px solid var(--line);
@@ -181,96 +200,143 @@
 
     <div class="err" id="err" hidden></div>
 
-    <fieldset>
-      <legend>Écran des participants — <code>stage</code></legend>
-      <div class="grid" id="stages"></div>
-    </fieldset>
+    <div class="tabs" id="tabs" role="tablist">
+      <button type="button" class="tab" data-tab="affichage" role="tab">Affichage</button>
+      <button type="button" class="tab" data-tab="appariement" role="tab">Appariement</button>
+      <button type="button" class="tab" data-tab="propositions" role="tab">Propositions &amp; résumé</button>
+    </div>
 
-    <fieldset>
-      <legend>Ce qui est permis</legend>
-      <div class="flags" id="flags"></div>
-      <p class="note">
-        Indépendants du <code>stage</code> à dessein&nbsp;: rouvrir la mission
-        d'entrée pour un retardataire ne fait pas reculer toute la salle.
-      </p>
-    </fieldset>
+    <div class="tab-panel" data-tab="affichage">
+      <fieldset>
+        <legend>Écran des participants — <code>stage</code></legend>
+        <div class="grid" id="stages"></div>
+      </fieldset>
 
-    <fieldset>
-      <legend>Projection — <code>projection_view</code></legend>
-      <div class="grid" id="pviews"></div>
+      <fieldset>
+        <legend>Ce qui est permis</legend>
+        <div class="flags" id="flags"></div>
+        <p class="note">
+          Indépendants du <code>stage</code> à dessein&nbsp;: rouvrir la mission
+          d'entrée pour un retardataire ne fait pas reculer toute la salle.
+        </p>
+      </fieldset>
 
-      <p class="note" style="margin-top:14px">Question projetée — <code>projection_question</code></p>
-      <div class="grid" id="pquestions"></div>
-      <p class="note" id="pqtext"></p>
+      <fieldset>
+        <legend>Projection — <code>projection_view</code></legend>
+        <div class="grid" id="pviews"></div>
 
-      <p class="note" style="margin-top:14px">
-        Page des résultats de vote — <code>projection_page</code>
-      </p>
-      <div class="grid">
-        <button id="pagePrev" type="button">← page précédente</button>
-        <button id="pageNext" type="button">page suivante →</button>
-        <button id="pageFirst" type="button">retour au début</button>
-      </div>
-      <p class="note">
-        Cinq énoncés par page, du plus consensuel au plus clivant. Les énoncés
-        recueillant moins de huit avis tranchés ne sont pas classés&nbsp;: ils
-        passent en fin de liste, signalés.
-      </p>
-    </fieldset>
+        <p class="note" style="margin-top:14px">Question projetée — <code>projection_question</code></p>
+        <div class="grid" id="pquestions"></div>
+        <p class="note" id="pqtext"></p>
 
-    <fieldset>
-      <legend>Propositions</legend>
-      <p class="note">
-        Valider crée un énoncé <em>sans</em> numéro d'îlot et l'active pour le
-        vote. C'est cette copie qui coupe le lien&nbsp;: à partir de là, plus
-        rien ne dit d'où vient la proposition.
-      </p>
-      <div id="propList" class="roster"></div>
-      <p class="note">
-        <button id="refreshProps" type="button">Rafraîchir</button>
-        <span id="propStats"></span>
-      </p>
-    </fieldset>
+        <p class="note" style="margin-top:14px">
+          Page des résultats de vote — <code>projection_page</code>
+        </p>
+        <div class="grid">
+          <button id="pagePrev" type="button">← page précédente</button>
+          <button id="pageNext" type="button">page suivante →</button>
+          <button id="pageFirst" type="button">retour au début</button>
+        </div>
+        <p class="note">
+          Cinq énoncés par page, du plus consensuel au plus clivant.
+        </p>
+      </fieldset>
 
-    <fieldset>
-      <legend>Export papier</legend>
-      <p class="note">
-        Les îlots avec leurs membres, et les énoncés retenus. À sortir
-        <strong>vers 20h00, avant le vote</strong>&nbsp;: c'est le moment où une
-        panne coûterait le plus cher (spec §7). S'il n'y a pas d'imprimante,
-        « enregistrer en PDF » dans la boîte d'impression fait le même office.
-      </p>
-      <p class="note">
-        <button id="printExport" type="button">Préparer et imprimer</button>
-        <span id="exportStats"></span>
-      </p>
-    </fieldset>
+      <fieldset>
+        <legend>Clôture</legend>
+        <p class="note">
+          Combien de questionnaires sont rentrés. Sert à décider quand fermer,
+          pas à lire les réponses&nbsp;: le texte libre se lit après la soirée,
+          dans l'admin PocketBase.
+        </p>
+        <p class="note">
+          <button id="refreshFb" type="button">Rafraîchir</button>
+          <span id="fbStats"></span>
+        </p>
+      </fieldset>
+    </div>
 
-    <fieldset>
-      <legend>Clôture</legend>
-      <p class="note">
-        Combien de questionnaires sont rentrés. Sert à décider quand fermer,
-        pas à lire les réponses&nbsp;: le texte libre se lit après la soirée,
-        dans l'admin PocketBase.
-      </p>
-      <p class="note">
-        <button id="refreshFb" type="button">Rafraîchir</button>
-        <span id="fbStats"></span>
-      </p>
-    </fieldset>
+    <div class="tab-panel" data-tab="appariement">
+      <fieldset>
+        <legend>Appariement par couleur — <code>stage = consigne</code></legend>
+        <p class="note">
+          Attribue une couleur et un code à 6 caractères à chaque paire —
+          appelable plusieurs fois, ne touche jamais quelqu'un déjà apparié
+          (spec §2.5). Pas d'étape de confirmation côté participant&nbsp;: c'est
+          un jeu à faire dans la salle, pas un formulaire.
+        </p>
+        <p class="note">
+          Chaque ligne ci-dessous a son propre menu&nbsp;: déplacer quelqu'un
+          vers un autre groupe (y compris un groupe déjà formé, pour créer un
+          trio), l'isoler dans un nouveau groupe, ou le repasser sans paire.
+        </p>
+        <p class="note">
+          <button id="genMatching" type="button">Attribuer les paires</button>
+          <button id="endMatching" type="button">Terminer (retour à idle)</button>
+          <span id="matchingStats"></span>
+        </p>
+        <div id="matchingRoster" class="roster"></div>
+      </fieldset>
 
-    <fieldset>
-      <legend>Îlots</legend>
-      <label>Nombre d'îlots actifs
-        <input type="number" id="islands" min="1" max="30" style="width:5em" />
-      </label>
-      <button id="saveIslands">Enregistrer</button>
+      <fieldset>
+        <legend>Îlots</legend>
+        <label>Nombre d'îlots actifs
+          <input type="number" id="islands" min="1" max="30" style="width:5em" />
+        </label>
+        <button id="saveIslands">Enregistrer</button>
 
-      <p class="note" style="margin-top:14px">
-        Remplissage — <button id="refreshRoster" type="button">Rafraîchir</button>
-      </p>
-      <div id="roster" class="roster"></div>
-    </fieldset>
+        <p class="note" style="margin-top:14px">
+          Remplissage — <button id="refreshRoster" type="button">Rafraîchir</button>
+        </p>
+        <div id="roster" class="roster"></div>
+      </fieldset>
+    </div>
+
+    <div class="tab-panel" data-tab="propositions">
+      <fieldset>
+        <legend>Résumé IA du vote</legend>
+        <p class="note">
+          Demande à Claude un court résumé des propositions les plus consensuelles
+          et l'affiche en direct sur la projection, sous les résultats du vote.
+          Le texte envoyé au modèle est éditable sans redéploiement de code —
+          <code>server/pb_hooks/prompts/vote-summary.txt</code> sur le serveur.
+        </p>
+        <p class="note">
+          <button id="genSummary" type="button">Générer le résumé</button>
+          <button id="clearSummary" type="button">Vider (masquer sur la projection)</button>
+          <span id="summaryStats"></span>
+        </p>
+        <p class="note" id="summaryPreview"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Export papier</legend>
+        <p class="note">
+          Les îlots avec leurs membres, et les énoncés retenus. À sortir
+          <strong>vers 20h00, avant le vote</strong>&nbsp;: c'est le moment où une
+          panne coûterait le plus cher (spec §7). S'il n'y a pas d'imprimante,
+          « enregistrer en PDF » dans la boîte d'impression fait le même office.
+        </p>
+        <p class="note">
+          <button id="printExport" type="button">Préparer et imprimer</button>
+          <span id="exportStats"></span>
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Propositions</legend>
+        <p class="note">
+          Valider crée un énoncé <em>sans</em> numéro d'îlot et l'active pour le
+          vote. C'est cette copie qui coupe le lien&nbsp;: à partir de là, plus
+          rien ne dit d'où vient la proposition.
+        </p>
+        <div id="propList" class="roster"></div>
+        <p class="note">
+          <button id="refreshProps" type="button">Rafraîchir</button>
+          <span id="propStats"></span>
+        </p>
+      </fieldset>
+    </div>
 
     <p class="note">
       ⚠️ Les règles d'API sont ouvertes pour le développement. À fermer avant
@@ -288,10 +354,39 @@
     var STAGES = ['accueil','mission','consigne','ilots','propositions','vote','resultats','cloture'];
     var FLAGS = [
       ['entry_open',        'Mission d’entrée'],
+      ['matching_open',     'Appariement par couleur (consigne)'],
       ['propositions_open', 'Saisie des propositions'],
       ['vote_open',         'Vote'],
       ['feedback_open',     'Questionnaire de clôture']
     ];
+
+    // --- onglets ---
+    // Mémorisé en localStorage : rouvrir la régie au milieu de la soirée ne
+    // doit pas retomber sur « Affichage » si on était en train de travailler
+    // l'appariement.
+    var TAB_KEY = 'etonnamment.regie.tab';
+    var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+    var tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tab-panel'));
+
+    function showTab(name) {
+      var known = tabButtons.some(function (b) { return b.dataset.tab === name; });
+      if (!known) name = tabButtons[0].dataset.tab;
+      tabButtons.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.tab === name));
+      });
+      tabPanels.forEach(function (p) {
+        p.classList.toggle('is-active', p.dataset.tab === name);
+      });
+      try { window.localStorage.setItem(TAB_KEY, name); } catch (e) { /* tant pis */ }
+    }
+
+    tabButtons.forEach(function (b) {
+      b.addEventListener('click', function () { showTab(b.dataset.tab); });
+    });
+
+    var savedTab = null;
+    try { savedTab = window.localStorage.getItem(TAB_KEY); } catch (e) { /* tant pis */ }
+    showTab(savedTab);
 
     /* Toute écriture de la régie passe par le client facilitateur : jeton
      * distinct de celui du participant, et seul compte accepté par les règles
@@ -395,6 +490,33 @@
     document.getElementById('pageFirst').addEventListener('click', function () {
       ok();
       patch({ projection_page: 0 }).catch(fail);
+    });
+
+    // --- résumé IA du vote ---
+    var genSummaryBtn = document.getElementById('genSummary');
+    var clearSummaryBtn = document.getElementById('clearSummary');
+    var summaryStats = document.getElementById('summaryStats');
+    var summaryPreview = document.getElementById('summaryPreview');
+    genSummaryBtn.addEventListener('click', function () {
+      ok();
+      genSummaryBtn.disabled = true;
+      summaryStats.textContent = 'Génération en cours…';
+      R().send('/api/summarize-votes', { method: 'POST' })
+        .then(function () {
+          summaryStats.textContent = 'Résumé généré — visible sur la projection.';
+        })
+        .catch(function (e) {
+          summaryStats.textContent = '';
+          fail(e);
+        })
+        .then(function () {
+          genSummaryBtn.disabled = false;
+        });
+    });
+    clearSummaryBtn.addEventListener('click', function () {
+      ok();
+      summaryStats.textContent = '';
+      patch({ text_summary: '' }).catch(fail);
     });
 
     /* Îlot 0 = « sans îlot ». Les îlots vides sont conservés dans le
@@ -616,6 +738,195 @@
       ok(); loadRoster();
     });
 
+    // --- appariement par couleur ---
+    var genMatchingBtn = document.getElementById('genMatching');
+    var endMatchingBtn = document.getElementById('endMatching');
+    var matchingStats = document.getElementById('matchingStats');
+    var matchingRosterEl = document.getElementById('matchingRoster');
+
+    // Générateur de couleur/code pour un « nouveau groupe » créé à la main —
+    // ne cherche pas à matcher exactement la palette du hook (spec §2.5,
+    // 360°/n réparti sur tout l'effectif) : un ajustement manuel est rare et
+    // unitaire, une teinte aléatoire suffit. Luminosité gardée dans la même
+    // plage (34-56 %) pour rester lisible en texte blanc.
+    var MATCH_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    function randomGroupColor() {
+      var h = Math.floor(Math.random() * 360);
+      var s = 55 + Math.floor(Math.random() * 35);
+      var l = 34 + Math.floor(Math.random() * 22);
+      return hslToHexRegie(h, s, l);
+    }
+    function hslToHexRegie(h, s, l) {
+      s /= 100; l /= 100;
+      var c = (1 - Math.abs(2 * l - 1)) * s;
+      var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+      var m = l - c / 2;
+      var r = 0, g = 0, b = 0;
+      if (h < 60)       { r = c; g = x; b = 0; }
+      else if (h < 120) { r = x; g = c; b = 0; }
+      else if (h < 180) { r = 0; g = c; b = x; }
+      else if (h < 240) { r = 0; g = x; b = c; }
+      else if (h < 300) { r = x; g = 0; b = c; }
+      else              { r = c; g = 0; b = x; }
+      var toHex = function (v) {
+        var s2 = Math.round((v + m) * 255).toString(16);
+        return s2.length === 1 ? '0' + s2 : s2;
+      };
+      return '#' + toHex(r) + toHex(g) + toHex(b);
+    }
+    function randomGroupCode(existingCodes) {
+      var code;
+      do {
+        code = '';
+        for (var i = 0; i < 6; i++) {
+          code += MATCH_CODE_ALPHABET.charAt(Math.floor(Math.random() * MATCH_CODE_ALPHABET.length));
+        }
+      } while (existingCodes[code]);
+      return code;
+    }
+
+    var NEW_GROUP = '__new__';
+    var NO_GROUP = '';
+
+    function loadMatchingRoster() {
+      return R().collection('participants')
+        .getFullList({ filter: 'entry_done = true', sort: 'created', requestKey: null })
+        .then(function (rows) {
+          var byCode = {};   // pair_code -> { color, members }
+          var unmatched = [];
+          rows.forEach(function (r) {
+            if (!r.pair_code) { unmatched.push(r); return; }
+            if (!byCode[r.pair_code]) byCode[r.pair_code] = { color: r.pair_color, members: [] };
+            byCode[r.pair_code].members.push(r);
+          });
+          var codes = Object.keys(byCode).sort();
+
+          // Options communes à tous les menus : chaque groupe existant,
+          // « nouveau groupe », « sans paire ». Construites une fois, pas
+          // par ligne.
+          function buildOptionsHTML(currentCode) {
+            var html = '';
+            codes.forEach(function (code) {
+              var n = byCode[code].members.length;
+              var sel = code === currentCode ? ' selected' : '';
+              html += '<option value="' + code + '"' + sel + '>' +
+                code + ' (' + n + (n > 1 ? ' membres' : ' membre') + ')</option>';
+            });
+            html += '<option value="' + NEW_GROUP + '">— nouveau groupe —</option>';
+            html += '<option value="' + NO_GROUP + '"' + (currentCode ? '' : ' selected') + '>— sans paire —</option>';
+            return html;
+          }
+
+          function bindSelect(sel, participant) {
+            sel.addEventListener('change', function () {
+              ok();
+              sel.disabled = true;
+              moveParticipant(participant, sel.value, byCode, codes)
+                .then(loadMatchingRoster)
+                .catch(function (e) { sel.disabled = false; fail(e); });
+            });
+          }
+
+          matchingRosterEl.textContent = '';
+
+          codes.forEach(function (code) {
+            var group = byCode[code];
+            var head = document.createElement('div');
+            head.className = 'pair-group-head';
+            head.innerHTML =
+              '<span class="pair-swatch" style="background:' + (group.color || '#ccc') + '"></span>' +
+              '<span class="pair-code">' + code + '</span>' +
+              '<span class="pair-count">' + group.members.length +
+              (group.members.length > 1 ? ' membres' : ' membre') + '</span>';
+
+            var wrap = document.createElement('div');
+            wrap.className = 'pair-group';
+            wrap.appendChild(head);
+
+            group.members.forEach(function (m) {
+              var row = document.createElement('div');
+              row.className = 'pair-member-row';
+              var name = document.createElement('span');
+              name.className = 'pair-member-name';
+              name.textContent = shortName(m.username);
+              var sel = document.createElement('select');
+              sel.innerHTML = buildOptionsHTML(code);
+              row.appendChild(name);
+              row.appendChild(sel);
+              wrap.appendChild(row);
+              bindSelect(sel, m);
+            });
+
+            matchingRosterEl.appendChild(wrap);
+          });
+
+          if (unmatched.length) {
+            var uHead = document.createElement('div');
+            uHead.className = 'pair-group-head';
+            uHead.innerHTML = '<span class="pair-swatch" style="background:#ccc"></span>' +
+              '<span class="unassigned">sans paire</span>' +
+              '<span class="pair-count">' + unmatched.length +
+              (unmatched.length > 1 ? ' personnes' : ' personne') + '</span>';
+            var uWrap = document.createElement('div');
+            uWrap.className = 'pair-group';
+            uWrap.appendChild(uHead);
+
+            unmatched.forEach(function (m) {
+              var row = document.createElement('div');
+              row.className = 'pair-member-row';
+              var name = document.createElement('span');
+              name.className = 'pair-member-name';
+              name.textContent = shortName(m.username);
+              var sel = document.createElement('select');
+              sel.innerHTML = buildOptionsHTML(null);
+              row.appendChild(name);
+              row.appendChild(sel);
+              uWrap.appendChild(row);
+              bindSelect(sel, m);
+            });
+
+            matchingRosterEl.appendChild(uWrap);
+          }
+
+          matchingStats.textContent = codes.length + ' groupe(s), ' +
+            unmatched.length + ' sans paire';
+        })
+        .catch(fail);
+    }
+
+    // Déplace `participant` vers `target` : un pair_code existant (rejoint
+    // ce groupe — c'est ainsi qu'un trio se forme, sans rien de spécial à
+    // prévoir), NEW_GROUP (couleur/code neufs), ou NO_GROUP (retour à vide).
+    function moveParticipant(participant, target, byCode, existingCodes) {
+      var data;
+      if (target === NO_GROUP) {
+        data = { pair_color: '', pair_code: '' };
+      } else if (target === NEW_GROUP) {
+        var seen = {};
+        existingCodes.forEach(function (c) { seen[c] = true; });
+        data = { pair_color: randomGroupColor(), pair_code: randomGroupCode(seen) };
+      } else {
+        data = { pair_color: byCode[target].color, pair_code: target };
+      }
+      return R().collection('participants').update(participant.id, data);
+    }
+
+    genMatchingBtn.addEventListener('click', function () {
+      ok();
+      genMatchingBtn.disabled = true;
+      R().send('/api/assign-matching', { method: 'POST' })
+        .then(function () {
+          return loadMatchingRoster();
+        })
+        .catch(fail)
+        .then(function () { genMatchingBtn.disabled = false; });
+    });
+
+    endMatchingBtn.addEventListener('click', function () {
+      ok();
+      patch({ matching_view: 'idle' }).catch(fail);
+    });
+
     // Une arrivée = un participant créé : on suit la collection source.
     function watchParticipants() {
       // Une arrivée = un participant créé : on suit la collection source.
@@ -771,9 +1082,12 @@
       // Ne pas écraser ce que le facilitateur est en train de taper.
       if (document.activeElement !== islandsEl) islandsEl.value = s.islands_count;
 
+      summaryPreview.textContent = s.text_summary || '';
+
       if (!rosterEl.childElementCount) loadRoster();
       if (!propListEl.childElementCount) loadProps();
       if (!fbStats.textContent) loadFeedbackCount();
+      if (!matchingRosterEl.childElementCount) loadMatchingRoster();
     });
 
     /* ---- Connexion --------------------------------------------------------

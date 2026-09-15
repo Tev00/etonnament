@@ -1,15 +1,21 @@
 /* Étonnamment d'accord — socle commun aux trois surfaces.
- * Palette reprise de la vitrine : le corail vient du lettrage « d'accord ». */
+ * Palette de marque (2026) : terracotta, sable, blé, pétrole, ciel. Les cinq
+ * couleurs de marque sont reprises telles quelles pour --accent (terracotta)
+ * et --ok (ciel, qui porte aussi le vote « d'accord » sur la projection) ;
+ * --accent-hi est une variante assombrie du terracotta pour :hover et les
+ * états d'alerte ; --ink/--ink-muted/--line sont dérivées du pétrole pour
+ * rester lisibles en texte sur fond clair, ce qu'aucune des cinq ne permet
+ * telle quelle. */
 
 :root {
-  --bg:        #FFFFFF;
-  --ink:       #141414;
-  --ink-muted: #6B6B6B;
-  --line:      #E6E6E6;
-  --accent:    #EE5340;
-  --accent-hi: #D8412F;
-  --ok:        #2E7D5B;
-  --warn:      #B23A2B;
+  --bg:        #FFFBF6;
+  --ink:       #294f51;
+  --ink-muted: #6B7D7E;
+  --line:      #E6D9C9;
+  --accent:    #9a3e2c;
+  --accent-hi: #7E3324;
+  --ok:        #419abf;
+  --warn:      #7E3324;
   --radius:    10px;
 }
 

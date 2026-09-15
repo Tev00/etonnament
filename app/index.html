@@ -52,6 +52,7 @@
     .saved { font-size: 14px; }
 
     /* ---- îlot ---- */
+    [data-stage="ilots"] { text-align: center; }
     .island-badge {
       position: fixed;
       right: 14px; bottom: 14px;
@@ -67,6 +68,50 @@
     .island-badge strong { font-size: 18px; margin-left: 4px; }
     .island-badge[hidden] { display: none; }
 
+    .participant-id {
+      position: fixed;
+      left: 0; right: 0; bottom: 2px;
+      z-index: 30;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: .04em;
+      color: var(--ink-muted);
+      opacity: .55;
+      pointer-events: none;
+    }
+    .participant-id[hidden] { display: none; }
+
+    /* ---- appariement par couleur (consigne) ----
+       Fond en aplat de la couleur de la paire : luminosité toujours
+       modérée côté serveur (server/pb_hooks/assign-matching.pb.js), donc
+       le texte blanc reste lisible sans calcul de contraste ici. */
+    .matching-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 24px;
+      text-align: center;
+      color: #fff;
+    }
+    .matching-overlay[hidden] { display: none; }
+    .matching-code {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(52px, 18vw, 110px);
+      letter-spacing: .06em;
+      text-shadow: 0 2px 14px rgba(0,0,0,.3);
+    }
+    .matching-hint {
+      font-size: clamp(15px, 4.2vw, 20px);
+      opacity: .92;
+      max-width: 36ch;
+    }
+
     .island-big {
       font-family: "Londrina Solid", sans-serif;
       font-weight: 900;
@@ -75,6 +120,8 @@
       color: var(--accent);
       margin: 8px 0 16px;
     }
+    .island-art { display: block; width: min(70vw, 260px); height: auto; margin: 20px auto 0; }
+    .accueil-art { display: block; max-width: 85%; max-height: 55vh; width: auto; height: auto; margin: 28px auto 0; border-radius: var(--radius); }
     .consigne {
       font-size: clamp(19px, 4.4vw, 26px);
       line-height: 1.35;
@@ -89,7 +136,11 @@
       border-radius: var(--radius);
       padding: 16px;
       margin: 16px 0;
+      transition: border-color .3s ease, background .3s ease;
     }
+    /* Flash bref au moment où l'enregistrement aboutit — la petite ligne de
+       texte en bas de carte se manque facilement, ce cadre non. */
+    .prop.just-saved { border-color: var(--ok); background: #F2F8FA; }
     .prop h2 { font-size: 18px; margin-bottom: 12px; }
     .prop label { display: block; font-size: 14px; color: var(--ink-muted); margin: 12px 0 4px; }
     .prop input, .prop textarea {
@@ -110,8 +161,9 @@
     .count { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
     .count.over { color: var(--warn); font-weight: 600; }
     .prop-state { font-size: 13px; color: var(--ink-muted); }
+    .prop-state.ok { color: var(--ok); font-weight: 600; }
     .prop.locked { opacity: .7; }
-    .prop.locked input, .prop.locked textarea { background: #FAFAF8; }
+    .prop.locked input, .prop.locked textarea { background: #F6EEE3; }
 
     /* ---- Vote (spec §1.5) ----
        Une carte à la fois. Le pouce doit atteindre les quatre boutons sans
@@ -142,7 +194,18 @@
       gap: 10px;
       margin-top: 16px;
     }
-    .vote-actions button { padding: 16px 12px; font-weight: 500; }
+    .vote-actions button { padding: 16px 12px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .vote-actions button img { width: 34px; height: 34px; object-fit: contain; }
+    /* Motus n'est pas un troisième choix à égalité avec les deux autres :
+       spec §1.5, « un avis neutre », pas un avis médian — il prend toute la
+       largeur, en plus grand, pour ne pas se confondre avec un simple
+       troisième bouton. */
+    .vote-actions button[data-vote="neutral"] {
+      grid-column: 1 / -1;
+      padding: 26px 12px;
+      font-size: 1.15em;
+    }
+    .vote-actions button[data-vote="neutral"] img { width: 68px; height: 68px; }
     /* « Passer » ne doit pas se cliquer par réflexe : il traverse la grille,
        en retrait, sous les trois avis. */
     .vote-actions .skip {
@@ -173,6 +236,71 @@
     .fq textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
     .fq .count { font-size: 13px; color: var(--ink-muted); }
     #fbSend { margin-top: 4px; }
+    .feedback-art { display: block; max-width: 90%; max-height: 52vh; width: auto; height: auto; margin: 0 auto 20px; }
+
+    /* ---- liens de bas de page (clôture) ---- */
+    .fblinks {
+      display: flex;
+      gap: 12px;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+    .fblink {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      /* Les deux <a> n'ont pas de fond propre (ils laissent voir --bg au
+         travers) ; le <button> « Télécharger » hérite lui du bouton
+         générique de base.css (background: #fff, blanc pur). Explicite ici
+         pour que les trois cartes montrent exactement la même couleur,
+         quel que soit l'élément HTML sous-jacent. */
+      background: var(--bg);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      text-align: center;
+    }
+    .fblink:hover { border-color: var(--accent); }
+    .fblink img { width: 32px; height: 32px; object-fit: contain; }
+
+    /* ---- image plein écran (bouton « Télécharger ») ----
+       Pas de téléchargement forcé : sur mobile, un <a download> est peu
+       fiable (Safari/PWA l'ignorent souvent). On affiche l'image en plein
+       cadre et on laisse le geste natif « appui long → enregistrer »
+       faire le travail — c'est ce qui marche partout. */
+    .image-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 95;
+      background: rgba(20, 20, 20, .92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+    }
+    .image-overlay[hidden] { display: none; }
+    .image-overlay img {
+      max-width: 100%;
+      max-height: 78vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
+    }
+    .image-overlay p {
+      color: #fff;
+      font-size: 13px;
+      opacity: .85;
+      text-align: center;
+      max-width: 32ch;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -184,6 +312,26 @@
   <button class="island-badge" id="islandBadge" hidden type="button">
     Îlot <strong id="islandBadgeN"></strong>
   </button>
+
+  <!-- Discret à dessein : sert à la régie pour retrouver quelqu'un en cas de
+       souci (paire cassée, îlot égaré) — pas fait pour attirer l'œil du
+       participant. Même code que shortName() dans regie.html, pour que ce
+       qu'on lit ici corresponde directement à ce que la régie voit dans son
+       roster. -->
+  <div class="participant-id" id="participantId" hidden></div>
+
+  <!-- Appariement par couleur (stage consigne) : prend TOUT l'écran, logo et
+       bandeau de connexion compris — c'est une carte à montrer dans la
+       salle, pas un panneau parmi d'autres. -->
+  <div id="matchingOverlay" class="matching-overlay" hidden>
+    <div class="matching-code" id="matchingCode"></div>
+    <p class="matching-hint" id="matchingHint">Trouvez la personne qui a la même couleur.</p>
+  </div>
+
+  <div id="downloadOverlay" class="image-overlay" hidden>
+    <img src="assets/Etonnamment d'accord.png" alt="Étonnamment d'accord" />
+    <p>Appuyez longuement sur l'image pour l'enregistrer — touchez ailleurs pour fermer.</p>
+  </div>
 
   <main class="wrap">
     <img class="logo" src="assets/Main_Logo.png" alt="Étonnamment d'accord" />
@@ -197,6 +345,7 @@
     <section class="panel" data-stage="accueil">
       <h1>Bienvenue</h1>
       <p>La soirée va commencer. Gardez cette page ouverte&nbsp;: elle se mettra à jour toute seule.</p>
+      <img class="accueil-art" src="assets/accueil.png" alt="" />
     </section>
 
     <section class="panel" data-stage="mission">
@@ -229,6 +378,7 @@
       <p class="step muted">Votre îlot</p>
       <div class="island-big" id="islandBig">—</div>
       <p class="muted" id="islandHint">Rejoignez la table qui porte ce numéro.</p>
+      <img class="island-art" src="assets/Island 3.png" alt="" />
     </section>
 
     <section class="panel" data-stage="propositions">
@@ -255,9 +405,9 @@
         </div>
         <div class="card" id="voteCard"></div>
         <div class="vote-actions">
-          <button type="button" data-vote="agree">D'accord</button>
-          <button type="button" data-vote="disagree">Pas d'accord</button>
-          <button type="button" data-vote="neutral">Motus</button>
+          <button type="button" data-vote="agree"><img src="assets/Vote - Yes.png" alt="" /><span>D'accord</span></button>
+          <button type="button" data-vote="disagree"><img src="assets/Vote - No.png" alt="" /><span>Pas d'accord</span></button>
+          <button type="button" data-vote="neutral"><img src="assets/Vote - Motus.png" alt="" /><span>Motus</span></button>
           <button type="button" class="skip" data-vote="skip">Passer</button>
         </div>
         <p class="vote-note muted">
@@ -278,6 +428,7 @@
     </section>
 
     <section class="panel" data-stage="cloture">
+      <img class="feedback-art" src="assets/feedback.png" alt="" />
       <h1>Avant de partir</h1>
       <p class="closed" data-when-closed="feedback_open">Le questionnaire n'est pas encore ouvert.</p>
 
@@ -299,6 +450,21 @@
           <a href="https://etonnamment.fr">etonnamment.fr</a>.
         </p>
       </div>
+
+      <div class="fblinks">
+        <a class="fblink" href="https://etonnamment.fr" target="_blank" rel="noopener">
+          <img src="assets/Square logo.png" alt="" />
+          <span>Notre site</span>
+        </a>
+        <button class="fblink" type="button" id="downloadArtBtn">
+          <img src="assets/Download.png" alt="" />
+          <span>Notre déclaration d'aujourd'hui</span>
+        </button>
+        <a class="fblink" href="https://www.instagram.com/nuances_org" target="_blank" rel="noopener">
+          <img src="assets/instagram.png" alt="" />
+          <span>Sur les réseaux</span>
+        </a>
+      </div>
     </section>
   </main>
 
@@ -309,6 +475,52 @@
     var conn = document.getElementById('conn');
     var stageName = document.getElementById('stageName');
     var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+
+    /* ---- appariement par couleur (consigne) ---------------------------
+     * Pas de nouvel écran dans la machine à états : ça reste le stage
+     * « consigne », juste recouvert par cet overlay tant que la régie a
+     * ouvert l'appariement. `me.pair_color`/`me.pair_code` arrivent via
+     * App.refreshParticipant(), déjà appelé à chaque session (spec §3 —
+     * même plomberie que pour l'îlot, rien de nouveau à interroger). */
+    var matchingOverlay = document.getElementById('matchingOverlay');
+    var matchingCode = document.getElementById('matchingCode');
+    var matchingHint = document.getElementById('matchingHint');
+
+    // Même règle que shortName() dans regie.html : les 4 derniers
+    // caractères du username généré, pour que régie et participant lisent
+    // exactement la même chaîne sans conversion mentale.
+    var participantIdEl = document.getElementById('participantId');
+    function shortName(u) {
+      return u.length > 8 ? u.slice(-4) : u;
+    }
+    function updateParticipantId(me) {
+      if (!me || !me.username) { participantIdEl.hidden = true; return; }
+      participantIdEl.textContent = 'ID ' + shortName(me.username);
+      participantIdEl.hidden = false;
+    }
+
+    function updateMatching(s, me) {
+      var show = s.stage === 'consigne' && s.matching_open === true &&
+        s.matching_view && s.matching_view !== 'idle';
+
+      if (!show || !me) {
+        matchingOverlay.hidden = true;
+        return;
+      }
+
+      if (me.pair_color) {
+        matchingOverlay.style.backgroundColor = me.pair_color;
+        matchingCode.textContent = me.pair_code || '';
+        matchingHint.textContent = 'Trouvez la personne qui a la même couleur.';
+      } else {
+        // Nombre impair de participants, ou pas encore appariable : plutôt
+        // qu'un écran qui a l'air cassé, on dit d'aller voir la régie.
+        matchingOverlay.style.backgroundColor = '#294f51';
+        matchingCode.textContent = '';
+        matchingHint.textContent = 'Pas encore de paire — allez voir la régie.';
+      }
+      matchingOverlay.hidden = false;
+    }
 
     App.onStatus(function (status) {
       conn.dataset.status = status;
@@ -358,8 +570,13 @@
               propsWrap.hidden = false;
               loadProps().then(watchProps);
             }
+            updateMatching(s, me);
+            updateParticipantId(me);
           })
           .catch(function () { /* on garde le dernier numéro connu */ });
+      } else {
+        updateMatching(s, null);
+        updateParticipantId(null);
       }
     });
 
@@ -587,6 +804,8 @@
         // Débounce : on écrit pendant qu'on tape, mais pas à chaque lettre.
         if (saveTimers[slot]) clearTimeout(saveTimers[slot]);
         f.state.textContent = 'modification en cours…';
+        f.state.className = 'prop-state';
+        f.box.classList.remove('just-saved');
         saveTimers[slot] = setTimeout(function () { saveProp(slot); }, 800);
       }
 
@@ -612,9 +831,14 @@
 
       return op.then(function (rec) {
         propRecords[slot] = rec;
-        f.state.textContent = 'enregistré';
+        f.state.textContent = '✓ enregistré';
+        f.state.className = 'prop-state ok';
+        f.box.classList.add('just-saved');
+        setTimeout(function () { f.box.classList.remove('just-saved'); }, 1500);
       }).catch(function (e) {
         f.state.textContent = 'non enregistré — la saisie est peut-être fermée';
+        f.state.className = 'prop-state';
+        f.box.classList.remove('just-saved');
         console.warn('proposition non enregistrée', e);
       });
     }
@@ -871,9 +1095,20 @@
     fbSend.addEventListener('click', function () {
       fbSend.disabled = true;
       fbSave(true).then(function () {
+        App.markFeedbackSent();
         fbWrap.hidden = true;
         fbDone.hidden = false;
       });
+    });
+
+    // Un tap n'importe où (image comprise) referme : ça ne gêne pas l'appui
+    // long qui déclenche l'enregistrement natif, seul un tap court ferme.
+    var downloadOverlay = document.getElementById('downloadOverlay');
+    document.getElementById('downloadArtBtn').addEventListener('click', function () {
+      downloadOverlay.hidden = false;
+    });
+    downloadOverlay.addEventListener('click', function () {
+      downloadOverlay.hidden = true;
     });
 
     function openFeedback() {

@@ -41,6 +41,20 @@
       margin: 0;
     }
     .sub { font-size: clamp(18px, 2.4vw, 34px); color: var(--ink-muted); margin-top: 3vh; }
+    .stage-art { display: block; max-width: min(560px, 55vw); max-height: 54vh; width: auto; height: auto; margin: 4vh auto 0; }
+    .stage-art[hidden] { display: none; }
+    /* Le QR occupe moins de hauteur que island/feedback : « Bienvenue » est
+       le plus long des titres (deux lignes), donc celui qui laisse le moins
+       de place en dessous avant de sortir du cadre (page en overflow:hidden,
+       rien ne doit défiler). Mesuré : sans ce plafond, le QR déborde de
+       ~190px sur 900px de haut. */
+    .stage-art--qr { max-width: min(380px, 40vw); max-height: 28vh; }
+    /* Idem pour la clôture : mesuré à 702px (78vh) de haut, le bloc titre +
+       image dépassait le cadre de ~150px. 56vh est le maximum qui tient
+       sans déborder avec « MERCI / À bientôt » — nettement plus grand que
+       la base (54vh), mais pas le facteur 3 demandé : le titre ne laisse
+       pas la place. Voir la note pour Paul. */
+    .stage-art--feedback { max-height: 56vh; }
 
     /* ---- miroir de la mission d'entrée ---- */
     #entryview { display: none; width: min(1500px, 92vw); }
@@ -63,7 +77,7 @@
       gap: 3vw;
     }
     .bar-label { font-size: clamp(16px, 1.9vw, 34px); margin-bottom: .5vh; }
-    .bar-track { height: clamp(14px, 2.4vh, 34px); background: #F1F1EF; border-radius: 999px; overflow: hidden; }
+    .bar-track { height: clamp(14px, 2.4vh, 34px); background: #F3E7D6; border-radius: 999px; overflow: hidden; }
     .bar-fill {
       height: 100%;
       background: var(--accent);
@@ -103,11 +117,11 @@
       height: clamp(16px, 2.6vh, 38px);
       border-radius: 999px;
       overflow: hidden;
-      background: #F1F1EF;
+      background: #F3E7D6;
     }
     .vbar span { transition: width .6s cubic-bezier(.22,.61,.36,1); }
     .v-agree    { background: var(--ok); }
-    .v-neutral  { background: #D9D9D5; }
+    .v-neutral  { background: #D99F6B; }
     .v-disagree { background: var(--accent); }
 
     .vmeta {
@@ -117,7 +131,12 @@
       color: var(--ink-muted);
       margin-top: .7vh;
     }
-    .vmeta .thin { opacity: .75; font-style: italic; }
+    /* Deuxième temps : le résumé IA n'apparaît qu'une fois généré par la
+       régie, en direct via `session.text_summary` (pas de nouvel écran). */
+    #vsummary { display: none; margin-top: 4vh; padding-top: 3vh; border-top: 1px solid var(--line); text-align: left; }
+    #vsummary.is-active { display: block; }
+    #vsummary p { font-size: clamp(18px, 2.2vw, 36px); line-height: 1.35; margin: 0; }
+
     .vfoot {
       margin-top: 3vh;
       font-size: clamp(14px, 1.5vw, 26px);
@@ -147,6 +166,7 @@
     <div class="kicker" id="kicker">Étonnamment d'accord</div>
     <h1 class="headline" id="headline">…</h1>
     <div class="sub" id="sub"></div>
+    <img class="stage-art" id="stageArt" src="" alt="" hidden />
   </div>
 
   <div id="entryview">
@@ -172,6 +192,10 @@
       </div>
       <div id="vpage"></div>
     </div>
+    <div id="vsummary">
+      <div class="kicker">Ce qui ressort</div>
+      <p id="vsummaryText"></p>
+    </div>
   </div>
 
   <script src="shared/pocketbase.umd.js"></script>
@@ -187,7 +211,7 @@
       ilots:        { kicker: 'Îlots',            head: 'Rejoignez votre îlot',   sub: '' },
       propositions: { kicker: 'Propositions',     head: 'À vous d’écrire',      sub: 'Deux propositions par îlot' },
       vote:         { kicker: 'Vote',             head: 'Votez',                  sub: 'Sur votre téléphone' },
-      resultats:    { kicker: 'Résultats',        head: 'Ce sur quoi vous êtes d’accord', sub: '' },
+      resultats:    { kicker: 'Résultats',        head: 'Ce sur quoi vous êtes (étonnamment!) d’accord', sub: '' },
       cloture:      { kicker: 'Merci',            head: 'À bientôt',              sub: '' }
     };
 
@@ -195,6 +219,51 @@
     var kicker = document.getElementById('kicker');
     var headline = document.getElementById('headline');
     var sub = document.getElementById('sub');
+    var stageArt = document.getElementById('stageArt');
+
+    // Illustration du stage courant. Pour « ilots », plusieurs images
+    // tournent pendant que la salle se déplace — un écran qui bouge un peu
+    // pendant qu'on cherche sa table.
+    var ISLAND_ART = ['assets/Island 1.png', 'assets/Island 2.png', 'assets/Island 3.png'];
+    var islandArtTimer = null;
+    var lastArtStage = null;
+
+    function stopIslandArt() {
+      if (islandArtTimer) { clearInterval(islandArtTimer); islandArtTimer = null; }
+    }
+
+    function startIslandArt() {
+      var i = 0;
+      stageArt.src = ISLAND_ART[i];
+      stageArt.hidden = false;
+      stopIslandArt();
+      islandArtTimer = setInterval(function () {
+        i = (i + 1) % ISLAND_ART.length;
+        stageArt.src = ISLAND_ART[i];
+      }, 4000);
+    }
+
+    function updateStageArt(stage) {
+      if (stage === lastArtStage) return;
+      lastArtStage = stage;
+      stageArt.classList.remove('stage-art--feedback', 'stage-art--qr');
+      if (stage === 'accueil') {
+        stopIslandArt();
+        stageArt.src = 'assets/QR_code.png';
+        stageArt.classList.add('stage-art--qr');
+        stageArt.hidden = false;
+      } else if (stage === 'ilots') {
+        startIslandArt();
+      } else if (stage === 'cloture') {
+        stopIslandArt();
+        stageArt.src = 'assets/feedback.png';
+        stageArt.classList.add('stage-art--feedback');
+        stageArt.hidden = false;
+      } else {
+        stopIslandArt();
+        stageArt.hidden = true;
+      }
+    }
 
     App.onStatus(function (status) {
       conn.dataset.status = status;
@@ -297,12 +366,13 @@
      * lean proche de 1 : la salle penche du même côté — consensuel.
      * lean proche de 0 : la salle est coupée en deux — clivant.
      * On projette du plus consensuel au plus clivant. */
-    var MIN_N = 8;        // en dessous, le bruit remonterait en tête
     var PER_PAGE = 5;     // lisible depuis le fond de la salle
 
     var voteview = document.getElementById('voteview');
     var vrows = document.getElementById('vrows');
     var vpage = document.getElementById('vpage');
+    var vsummary = document.getElementById('vsummary');
+    var vsummaryText = document.getElementById('vsummaryText');
 
     var voteRows = [];
     var votePage = 0;
@@ -315,19 +385,11 @@
           text: r.text,
           agree: agree, neutral: neutral, disagree: disagree,
           n: n,
-          lean: n ? Math.abs(agree - disagree) / n : 0,
-          thin: n < MIN_N
+          lean: n ? Math.abs(agree - disagree) / n : 0
         };
       });
 
-      // Les énoncés sous le seuil ne sont pas classés — mais ils restent
-      // affichés, en fin de liste et signalés comme tels. Les faire
-      // disparaître serait très visible pour l'îlot qui les a écrits.
-      var solid = scored.filter(function (r) { return !r.thin; })
-                        .sort(function (a, b) { return b.lean - a.lean; });
-      var thin = scored.filter(function (r) { return r.thin; })
-                       .sort(function (a, b) { return b.n - a.n; });
-      return solid.concat(thin);
+      return scored.sort(function (a, b) { return b.lean - a.lean; });
     }
 
     function renderVote() {
@@ -363,8 +425,7 @@
         meta.innerHTML =
           '<span>' + r.agree + ' d’accord</span>' +
           '<span>' + r.neutral + ' motus</span>' +
-          '<span>' + r.disagree + ' pas d’accord</span>' +
-          (r.thin ? '<span class="thin">trop peu de votes pour être classé</span>' : '');
+          '<span>' + r.disagree + ' pas d’accord</span>';
 
         row.appendChild(text);
         row.appendChild(bar);
@@ -401,10 +462,16 @@
         if (!voteRows.length) reloadVotes(); // puis on va chercher le reste
       }
 
+      var hasSummary = !!(s.text_summary && s.text_summary.trim());
+      vsummary.classList.toggle('is-active', hasSummary);
+      vsummaryText.textContent = hasSummary ? s.text_summary : '';
+
       if (s.projection_question && s.projection_question !== currentQuestion) {
         currentQuestion = s.projection_question;
       }
       if (showEntry) renderEntry();
+
+      updateStageArt(s.stage);
 
       var v = VUES[s.stage];
       if (!v) return;              // stage inconnu : on garde l'écran précédent
