@@ -235,12 +235,6 @@ server/pb_hooks/prompts/vote-summary.txt, PAS par ce fichier]
 "Connexion impossible : {détail}"
 "Se déconnecter"
 
---- Bandeau de connexion (une fois dans la console, si souci réseau) ---
-"Connexion…"
-"Connexion perdue — vos commandes ne partiront pas"  [différent du message
-côté participant/écran — ici ça prévient que CLIQUER ne fera rien tant que
-ce n'est pas revenu]
-
 --- Les 3 onglets ---
 "Affichage" / "Appariement" / "Propositions & résumé"
 
