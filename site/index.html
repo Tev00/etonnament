@@ -410,7 +410,7 @@
       margin-top: 30px;
       overflow-x: auto;
       overflow-y: hidden;
-      padding: 8px 0 460px;                 /* room below for the taller drop-down cards */
+      padding: 52px 0 460px 56px;                /* room above for the date labels, below for the taller drop-down cards */
       -webkit-overflow-scrolling: touch;
       scrollbar-width: thin;
     }
@@ -431,6 +431,15 @@
       box-shadow: 0 0 0 0 rgba(238,83,64,.5); animation: tlpulse 2.2s infinite; pointer-events: none;
     }
     .tl-event:hover .tl-dot, .tl-event.is-open .tl-dot { animation: none; }
+    /* permanent date above each dot; alternate rows so neighbouring dates never collide */
+    .tl-label {
+      position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+      font-family: "Londrina Solid", sans-serif; font-weight: 900; text-transform: uppercase;
+      font-size: 13px; letter-spacing: .03em; line-height: 1; white-space: nowrap;
+      color: var(--accent); pointer-events: none;
+    }
+    .tl-event:nth-of-type(even) .tl-label { bottom: calc(100% + 24px); }
+    .tl-event.has-link .tl-hit { cursor: pointer; }
     @keyframes tlpulse {
       0%   { box-shadow: 0 0 0 0 rgba(238,83,64,.45); }
       70%  { box-shadow: 0 0 0 11px rgba(238,83,64,0); }
@@ -473,6 +482,7 @@
       .tl-card { width: 250px; }
       .tl-row img { height: 108px; }
       .tl-scroll { padding-bottom: 420px; }
+      .tl-label { font-size: 12px; }
     }
 
     /* keep anchored sections from hiding behind the fixed header */
@@ -1102,19 +1112,32 @@
       });
     })();
 
-    /* Touch devices: tap a timeline sign to toggle its event card */
+    /* Timeline: date label above each dot; clicking a dot opens the event's link
+       (if its card has one), otherwise toggles the card on touch devices. */
     (function () {
       const stage = document.querySelector(".tl-stage");
       if (!stage) return;
       let touch = false;
       try { touch = matchMedia("(hover: none)").matches; } catch (e) {}
-      if (!touch) return;
       const evs = Array.from(stage.querySelectorAll(".tl-event"));
       evs.forEach(function (ev) {
-        const hit = ev.querySelector(".tl-hit");
+        const date = ev.querySelector(".tl-date");
+        const dot  = ev.querySelector(".tl-dot");
+        if (date && dot) {
+          const label = document.createElement("span");
+          label.className = "tl-label";
+          label.setAttribute("aria-hidden", "true");
+          label.textContent = date.textContent;
+          dot.parentNode.insertBefore(label, dot.nextSibling);
+        }
+        const hit  = ev.querySelector(".tl-hit");
+        const link = ev.querySelector(".tl-link");
         if (!hit) return;
+        if (link) ev.classList.add("has-link");
         hit.addEventListener("click", function (e) {
           e.stopPropagation();
+          if (link) { window.open(link.href, "_blank", "noopener"); return; }
+          if (!touch) return;
           const open = ev.classList.contains("is-open");
           evs.forEach(function (o) { o.classList.remove("is-open"); });
           if (!open) ev.classList.add("is-open");
