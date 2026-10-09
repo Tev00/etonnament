@@ -351,10 +351,25 @@
   <script src="shared/questions.js"></script>
   <script src="shared/app.js"></script>
   <script>
-    var STAGES = ['accueil','mission','consigne','ilots','propositions','vote','resultats','cloture'];
+    var STAGES = ['accueil','mission','consigne','ilots','polquiz','propositions','vote','resultats','cloture'];
+    // Libellés affichés sur les boutons de stage — la valeur de `stage` en
+    // base reste la clé ci-dessus (index.html en dépend), ceci n'est que
+    // l'étiquette lue par la régie.
+    var STAGE_LABELS = {
+      accueil:      'Accueil',
+      mission:      'Questionnaire | Intro',
+      consigne:     'Paires',
+      ilots:        'Îlots',
+      polquiz:      'Pol’ quiz',
+      propositions: 'Propositions',
+      vote:         'Vote',
+      resultats:    'Résultats',
+      cloture:      'Questionnaire | Fin'
+    };
     var FLAGS = [
       ['entry_open',        'Mission d’entrée'],
       ['matching_open',     'Appariement par couleur (consigne)'],
+      ['polquiz_open',      'Pol’ quiz (saisie par îlot)'],
       ['propositions_open', 'Saisie des propositions'],
       ['vote_open',         'Vote'],
       ['feedback_open',     'Questionnaire de clôture']
@@ -415,7 +430,7 @@
     // --- boutons de stage ---
     STAGES.forEach(function (name) {
       var b = document.createElement('button');
-      b.textContent = name;
+      b.textContent = STAGE_LABELS[name] || name;
       b.dataset.stage = name;
       b.addEventListener('click', function () {
         ok();

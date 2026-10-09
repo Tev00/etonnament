@@ -27,7 +27,8 @@ const browser = {
   App: 'readonly',
   QUESTIONS: 'readonly',
   CONSIGNE_QUESTIONS: 'readonly',
-  FEEDBACK: 'readonly'
+  FEEDBACK: 'readonly',
+  POLQUIZ: 'readonly'
 };
 
 export default [

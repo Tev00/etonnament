@@ -1,7 +1,9 @@
 ÉTONNAMMENT D'ACCORD — INVENTAIRE DES TEXTES DE L'INTERFACE
-Généré le 10 septembre 2026. Sert à relire et ajuster la copie sans avoir
-à fouiller le code — donnez-moi la liste des changements (texte actuel →
-nouveau texte) et je les reporte dans les fichiers.
+Généré le 10 septembre 2026, mis à jour le 9 octobre 2026 (échelles de
+Likert à 5 degrés, stage « Pol' quiz », renommage des boutons de régie).
+Sert à relire et ajuster la copie sans avoir à fouiller le code — donnez-moi
+la liste des changements (texte actuel → nouveau texte) et je les reporte
+dans les fichiers.
 
 COMMENT LIRE CE FICHIER
 ------------------------------------------------------------------------------
@@ -46,40 +48,50 @@ Si le compte ne peut pas être créé (réseau) :
 "Rechargez la page dans un instant."
 
 --- Les 7 questions de la mission d'entrée ---
+⚠️ Depuis le 9 oct., les 7 questions sont à 5 degrés (Likert), affichées en
+ligne plutôt qu'empilées. Changer le NOMBRE d'options casse cette mise en
+forme (prévue pour 5 colonnes) — changer le TEXTE des options reste libre.
+
 Q1 "Dans les douze derniers mois, vous est-il arrivé d'éviter un sujet
    politique avec un proche pour ne pas créer de tension ?"
-   → Souvent / Une fois ou deux / Jamais
+   → Jamais / Rarement / Parfois / Souvent / Très souvent
 
 Q2 "Vous est-il déjà arrivé de changer d'avis sur un sujet politique
    important à la suite d'une conversation ?"
-   → Oui / Non / Je ne sais pas
+   → Jamais / Rarement / Parfois / Souvent / Très souvent
 
 Q3 "Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par
    crainte de la réaction ?"
-   → Oui / Non
+   → Jamais / Rarement / Parfois / Souvent / Très souvent
    ⚠️ Reprise mot pour mot par F2 côté questionnaire de clôture (mesure
    avant/après) — si vous changez le sens de cette question, changez F2
    pareil ou la comparaison ne veut plus rien dire.
 
 Q4 "Quand vous entendez le mot « débat », qu'est-ce qui vous vient en
    premier ?"
-   → Un affrontement / Un échange utile / Un spectacle / Autre
+   → Un affrontement / Un échange utile / Un spectacle / Une perte de
+   temps / Autre
    ⚠️ Alimente l'algorithme de répartition en îlots. Le texte des options
-   est libre ; ne touchez pas aux clés (q4_c1...) ni à l'ordre.
+   est libre ; ne touchez pas aux clés (q4_c1...) ni à l'ordre. Catégoriel
+   (pas d'ordre réel) — affiché en ligne comme les autres pour l'uniformité
+   visuelle, mais ce n'est pas une vraie échelle.
 
 Q5 "Avez-vous le sentiment que votre voix compte dans les décisions
    politiques ?"
-   → Oui / Plutôt non / Pas du tout
+   → Tout à fait / Plutôt oui / Je ne sais pas / Plutôt non / Pas du tout
 
 Q6 "Connaissez-vous personnellement quelqu'un dont les convictions
    politiques sont très éloignées des vôtres, et avec qui vous discutez
    régulièrement ?"
-   → Oui / Non
+   → Personne / Oui, rarement / Oui, parfois / Oui, souvent / Oui, très
+   souvent
    ⚠️ Alimente aussi l'algorithme des îlots, même remarque que Q4.
 
 Q7 "Qu'est-ce qui vous a fait venir ce soir ?"
    → La méthode / Le sujet / J'accompagne quelqu'un / Je veux contribuer
-   au projet
+   au projet / La curiosité
+   ⚠️ Catégoriel, même remarque que Q4 (pas d'algorithme ici, juste la mise
+   en forme).
 
 --- Rencontre (stage = consigne) — mode "question", quand l'appariement
     couleur n'est PAS activé par la régie ---
@@ -101,6 +113,29 @@ encore apparié]
 [image Island 3.png sous le texte]
 Badge permanent en bas d'écran (visible à tout moment, pas juste sur cet
 écran) : "Îlot {n}"
+
+--- Pol' quiz (stage = polquiz) — ajouté le 9 oct. ---
+"Pol' quiz"
+"Le quiz n'est pas encore ouvert."
+"Une seule réponse par îlot. N'importe qui à votre table peut répondre —
+tout le monde avance ensemble."
+"Question {n} sur {total}"
+"C'est noté"
+"Merci. Gardez cette page ouverte : la suite s'affichera ici."
+
+Les 4 questions d'exemple (window.POLQUIZ dans shared/questions.js —
+contenu volontairement intemporel, à remplacer librement, y compris le
+nombre de questions) :
+PQ1 "Quel pays est considéré comme le berceau de la démocratie ?"
+    → La Grèce antique / La Rome antique / Le Royaume-Uni / La France
+PQ2 "En France, à partir de quel âge peut-on voter ?"
+    → 16 ans / 18 ans / 21 ans / 25 ans
+PQ3 "D'où vient le mot « démocratie » ?"
+    → Du grec, « le pouvoir du peuple » / Du latin, « le pouvoir de la
+    loi » / De l'arabe, « l'assemblée » / Un mot moderne, né au XIXe siècle
+PQ4 "Pour votre îlot, qu'est-ce qui compte le plus dans un bon débat ?"
+    → Écouter / Convaincre / Être honnête / Être drôle
+    [pas de bonne réponse — sert à faire parler la table, pas à tester]
 
 --- Propositions (stage = propositions) ---
 "Vos propositions"
@@ -159,13 +194,18 @@ Trois cartes tout en bas de cet écran :
     instagram.png]
 
 --- Les 6 questions du questionnaire de clôture ---
+⚠️ Depuis le 9 oct., F1/F2/F5 (les questions à choix) sont aussi à 5 degrés
+et affichées en ligne, comme la mission d'entrée. F3/F4/F6 restent en texte
+libre, inchangées.
+
 F1 "Ce soir, avez-vous entendu un point de vue qui vous a surpris ?"
-   → Oui, plusieurs / Oui, un / Non
+   → Pas du tout / Un peu / Moyennement / Beaucoup / Énormément
 
 F2 "Ce soir, avez-vous pu dire ce que vous pensiez, sans vous retenir ?"
-   → Oui / En partie / Non
+   → Jamais / Rarement / Parfois / Souvent / Très souvent
    ⚠️ Miroir de Q3 (mission d'entrée) — seule vraie mesure avant/après du
-   questionnaire. Garder le même sens que Q3 si vous éditez.
+   questionnaire. Les deux échelles sont désormais identiques mot pour mot ;
+   gardez-les alignées si vous éditez l'une des deux.
 
 F3 "Qu'est-ce qui a le mieux marché, selon vous ?"  [texte libre — indice
    affiché dans le champ vide : "Une ligne suffit."]
@@ -174,7 +214,7 @@ F4 "Qu'est-ce qui a coincé ?"  [texte libre — indice : "Même une petite
    chose."]
 
 F5 "Seriez-vous prêt·e à revenir, ou à amener quelqu'un ?"
-   → Oui, et j'amènerais quelqu'un / Oui, je reviendrais / Peut-être / Non
+   → Oui, avec quelqu'un / Oui, seul·e / Probablement / Peut-être / Non
 
 F6 "Qu'est-ce que vous diriez à quelqu'un pour l'inviter au prochain
    débat ?"  [texte libre — indice : "Vos mots à vous — ce sont les
@@ -198,6 +238,8 @@ consigne      "Rencontre" / "Trouvez quelqu'un qui…" / (pas de sous-titre)
               [+ pendant l'appariement couleur : images d'îlots qui
               tournent toutes les 4 secondes]
 ilots         "Îlots" / "Rejoignez votre îlot" / (pas de sous-titre)
+polquiz       "Pol' quiz" / "Répondez en îlot" / "Sur votre téléphone"
+              [ajouté le 9 oct.]
 propositions  "Propositions" / "À vous d'écrire" / "Deux propositions par
               îlot"
 vote          "Vote" / "Votez" / "Sur votre téléphone"
@@ -239,13 +281,16 @@ server/pb_hooks/prompts/vote-summary.txt, PAS par ce fichier]
 "Affichage" / "Appariement" / "Propositions & résumé"
 
 --- Onglet Affichage ---
-Écran des participants — boutons de stage : accueil / mission / consigne /
-  ilots / propositions / vote / resultats / cloture  [noms techniques, pas
-  vraiment de la "copie" à peaufiner]
+Écran des participants — boutons de stage, avec libellé convivial depuis le
+  9 oct. (la clé technique en base ne change pas, seul l'intitulé du bouton
+  change — STAGE_LABELS dans regie.html) :
+  "Accueil" / "Questionnaire | Intro" (mission) / "Paires" (consigne) /
+  "Îlots" / "Pol' quiz" (polquiz) / "Propositions" / "Vote" / "Résultats" /
+  "Questionnaire | Fin" (cloture)
 
-Ce qui est permis — 5 bascules : "Mission d'entrée" / "Appariement par
-  couleur (consigne)" / "Saisie des propositions" / "Vote" / "Questionnaire
-  de clôture"
+Ce qui est permis — 6 bascules : "Mission d'entrée" / "Appariement par
+  couleur (consigne)" / "Pol' quiz (saisie par îlot)" / "Saisie des
+  propositions" / "Vote" / "Questionnaire de clôture"
   "Indépendants du stage à dessein : rouvrir la mission d'entrée pour un
   retardataire ne fait pas reculer toute la salle."
   Chaque bascule affiche "ouvert" ou "fermé"

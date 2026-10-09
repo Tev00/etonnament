@@ -141,6 +141,7 @@ Une seule ligne, `key = "main"`. Tout le monde la lit, seule la régie l'écrit.
 | `matching_open` | bool | `false` | appariement par couleur ouvert (stage `consigne`, §2.5) |
 | `matching_view` | select | `idle` | `idle` \| `color_assignment` \| `searching` — les deux non-idle affichent la même chose côté participant (§2.5) |
 | `islands_count` | number | `10` | nombre d'îlots actifs |
+| `polquiz_open` | bool | `false` | saisie du Pol' quiz ouverte (stage `polquiz`, §2.6) |
 | `propositions_open` | bool | `false` | saisie des propositions |
 | `vote_open` | bool | `false` | vote Polis |
 | `feedback_open` | bool | `false` | questionnaire de clôture |
@@ -326,6 +327,43 @@ régie et participant lisent la même chaîne sans conversion mentale. Sert à
 localiser quelqu'un dans le roster (paire cassée, îlot égaré), pas à
 attirer l'œil du participant lui-même.
 
+### 2.6 Pol' quiz — entre `ilots` et `propositions` (ajouté le 9 oct.)
+
+Mini-quiz à choix unique (questions.js, `window.POLQUIZ`, 4 questions
+d'exemple — contenu volontairement intemporel, à ajuster sans toucher au
+code), affiché sur le stage `polquiz`, gardé par le booléen `polquiz_open`
+comme les autres phases (§3, §4).
+
+Différence structurante avec la mission d'entrée : **une réponse par îlot**,
+pas une par personne — même logique de synchronisation partagée que
+`propositions` (§1.4), pas celle de la mission. Une nouvelle collection,
+`polquiz_answers`, porte un enregistrement par îlot (`island`, number) avec
+un champ `answers` (json, `{ pq1: 'pq1_c2', … }`) — une seule ligne par îlot,
+pas une ligne par question comme `propositions` (deux champs suffisent, pas
+besoin de « slots »). Quiconque à la table répond écrit dans ce même
+enregistrement ; tous les téléphones abonnés (subscribe sur la collection,
+filtrage local par `island`) avancent ensemble à la question suivante — le
+participant qui tape ne voit **pas** un état différent de ses voisins de
+table une fois la réponse partie, exactement comme pour les propositions.
+
+Règles d'API (mêmes que `propositions`, §4) :
+
+```
+list/view : island = @request.auth.island || FACILITATOR
+create    : island = @request.auth.island && @collection.session.polquiz_open = true
+update    : idem create, ou FACILITATOR
+delete    : FACILITATOR
+```
+
+⚠️ **Collection à créer à la main dans l'admin PocketBase** (comme
+`pair_color`/`pair_code` et `matching_open`/`matching_view` l'ont été le 10
+sept) : ce dépôt n'a pas de migration automatisée, et créer une collection
+depuis un hook reviendrait à donner à du code applicatif un accès qu'on
+retire explicitement au participant partout ailleurs (§4, point 1). Champs à
+ajouter avant de déployer ce code : `session.polquiz_open` (bool, défaut
+`false`), puis la collection `polquiz_answers` avec `island` (number,
+requis) et `answers` (json) et les quatre règles ci-dessus.
+
 ---
 
 ## 3. Machine à états
@@ -340,16 +378,23 @@ action des participants. Avec des booléens indépendants, la régie peut rouvri
 la mission d'entrée à 20h10 pour un retardataire sans faire reculer toute la
 salle. Une machine à états strictement séquentielle rendrait ça impossible.
 
+La régie affiche des libellés différents de la clé `stage` sur ses boutons
+(`STAGE_LABELS` dans `regie.html`, ajouté le 9 oct.) — la clé stockée en base
+ne change pas, seul l'intitulé lu par le facilitateur change :
+`mission` → « Questionnaire | Intro », `consigne` → « Paires », `cloture` →
+« Questionnaire | Fin ».
+
 | `stage` | Écran participant | Ouvert normalement |
 |---|---|---|
 | `accueil` | déroulé, partenaires, calendrier | `entry_open` |
-| `mission` | 7 questions, une par écran | `entry_open` |
-| `consigne` | « trouve quelqu'un qui… » + n° d'îlot | — |
+| `mission` (« Questionnaire \| Intro ») | 7 questions à 5 degrés (Likert), une par écran | `entry_open` |
+| `consigne` (« Paires ») | « trouve quelqu'un qui… » + appariement par couleur + n° d'îlot | — |
 | `ilots` | numéro d'îlot en très grand | — |
+| `polquiz` (« Pol' quiz ») | mini-quiz à choix unique, une réponse par îlot (§2.6) | `polquiz_open` |
 | `propositions` | formulaire (membres de l'îlot) | `propositions_open` |
 | `vote` | pile de cartes | `vote_open` |
 | `resultats` | « regardez l'écran » | — |
-| `cloture` | 5 questions de feedback | `feedback_open` |
+| `cloture` (« Questionnaire \| Fin ») | 6 questions de feedback, dont 3 à 5 degrés (Likert) | `feedback_open` |
 
 Déroulé nominal, chaque transition déclenchée **manuellement** par la régie :
 
@@ -359,6 +404,7 @@ Déroulé nominal, chaque transition déclenchée **manuellement** par la régie
        consigne      → n° d'îlot affiché dès la fin de la mission
 19h25  ─────────────  régie : entry_open=false
        ilots         projection_view=entry, la régie fait défiler q1…q7
+       polquiz       polquiz_open=true (mini-quiz, une réponse par îlot)
 20h00  propositions  propositions_open=true
        ─────────────  régie valide → statements.active=true
 20h45  vote          vote_open=true, propositions_open=false
@@ -384,6 +430,7 @@ Abréviation utilisée ci-dessous :
 | `entry_answers` | `participant = @request.auth.id \|\| FACILITATOR` | `participant = @request.auth.id && @collection.session.entry_open = true` | idem create | `null` |
 | `statements` | `active = true && @collection.session.vote_open = true` … `\|\| FACILITATOR` | `FACILITATOR` | `FACILITATOR` | `FACILITATOR` |
 | `propositions` | `island = @request.auth.island \|\| FACILITATOR` | `island = @request.auth.island && @collection.session.propositions_open = true` | idem create, ou `FACILITATOR` | `FACILITATOR` |
+| `polquiz_answers` | `island = @request.auth.island \|\| FACILITATOR` | `island = @request.auth.island && @collection.session.polquiz_open = true` | idem create, ou `FACILITATOR` | `FACILITATOR` |
 | `votes` | `participant = @request.auth.id \|\| FACILITATOR` | `participant = @request.auth.id && @collection.session.vote_open = true` | idem create | `null` |
 | `feedback` | `FACILITATOR` | `participant = @request.auth.id && @collection.session.feedback_open = true` | `participant = @request.auth.id` | `null` |
 | `session` | `""` | `null` | `FACILITATOR` | `null` |

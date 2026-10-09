@@ -46,6 +46,33 @@
     /* Cibles tactiles généreuses : on répond debout, en tenant son manteau. */
     .options button { text-align: left; padding: 16px 18px; font-size: 17px; }
 
+    /* Échelle de Likert à 5 degrés (mission d'entrée, clôture) : une ligne de
+     * boutons plutôt qu'une liste empilée, chiffre en avant, libellé court
+     * dessous. Les libellés sont volontairement courts (questions.js) pour
+     * tenir sur une colonne étroite en 5 colonnes. Partagé entre `.options`
+     * (mission) et `.fq-options` (clôture). */
+    .options.likert, .fq-options.likert { display: flex; gap: 6px; flex-wrap: nowrap; }
+    .options.likert button, .fq-options.likert button {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+      padding: 12px 4px;
+    }
+    .likert-n {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .likert-label {
+      font-size: 11.5px;
+      line-height: 1.2;
+    }
+
     .nav { display: flex; align-items: center; gap: 14px; margin-top: 22px; min-height: 40px; }
     .nav button { padding: 8px 14px; font-size: 15px; }
     #prev[hidden] { display: none; }
@@ -381,6 +408,30 @@
       <img class="island-art" src="assets/Island 3.png" alt="" />
     </section>
 
+    <section class="panel" data-stage="polquiz">
+      <h1>Pol’ quiz</h1>
+      <p class="closed" data-when-closed="polquiz_open">Le quiz n'est pas encore ouvert.</p>
+
+      <div id="polquizWrap" hidden>
+        <p class="muted">
+          Une seule réponse par îlot. N'importe qui à votre table peut
+          répondre — tout le monde avance ensemble.
+        </p>
+
+        <div id="polquizQuestion">
+          <div class="progress"><span id="polquizBar"></span></div>
+          <p class="step muted" id="polquizStep"></p>
+          <h1 id="polquizText"></h1>
+          <div class="options" id="polquizOptions"></div>
+        </div>
+
+        <div id="polquizDone" hidden>
+          <h1>C'est noté</h1>
+          <p class="muted">Merci. Gardez cette page ouverte&nbsp;: la suite s'affichera ici.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" data-stage="propositions">
       <h1>Vos propositions</h1>
       <p class="closed" data-when-closed="propositions_open">La saisie n'est pas encore ouverte.</p>
@@ -565,10 +616,14 @@
             if (!me) return;
             var moved = me.island !== myIsland;
             setIsland(me.island);
-            if (moved) { propsBuilt = false; propRecords = []; }
+            if (moved) { propsBuilt = false; propRecords = []; polquizRecord = null; }
             if (s.propositions_open && myIsland > 0) {
               propsWrap.hidden = false;
               loadProps().then(watchProps);
+            }
+            if (s.polquiz_open && myIsland > 0) {
+              polquizWrap.hidden = false;
+              loadPolquiz().then(watchPolquiz);
             }
             updateMatching(s, me);
             updateParticipantId(me);
@@ -604,6 +659,25 @@
       return QUESTIONS.length;
     }
 
+    /* Un bouton Likert : chiffre (position dans la liste) en avant, libellé
+     * court dessous. Partagé entre la mission d'entrée et la clôture —
+     * toutes deux en 5 degrés depuis le 9 oct. */
+    function likertButton(opt, n, selected, onPick) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(selected));
+      var num = document.createElement('span');
+      num.className = 'likert-n';
+      num.textContent = String(n);
+      var label = document.createElement('span');
+      label.className = 'likert-label';
+      label.textContent = opt.label;
+      b.appendChild(num);
+      b.appendChild(label);
+      b.addEventListener('click', onPick);
+      return b;
+    }
+
     function renderMission() {
       if (!ready) return;
 
@@ -622,12 +696,11 @@
       prevBtn.hidden = index === 0;
 
       optionsEl.textContent = '';
-      q.options.forEach(function (opt) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = opt.label;
-        b.setAttribute('aria-pressed', String(answers[q.key] === opt.key));
-        b.addEventListener('click', function () { choose(q, opt); });
+      optionsEl.classList.add('likert');
+      q.options.forEach(function (opt, i) {
+        var b = likertButton(opt, i + 1, answers[q.key] === opt.key, function () {
+          choose(q, opt);
+        });
         optionsEl.appendChild(b);
       });
     }
@@ -892,6 +965,99 @@
       }).catch(function (e) { console.warn('abonnement propositions refusé', e); });
     }
 
+    /* ---- Pol' quiz ---------------------------------------------------------
+     * Même principe que les propositions, mais une seule réponse PAR ÎLOT au
+     * lieu d'une par personne : un enregistrement `polquiz_answers` par îlot,
+     * avec un champ json `answers` indexé par clé de question (questions.js,
+     * annexe C). Quiconque répond écrit pour toute la table ; les autres
+     * téléphones, abonnés au même enregistrement, avancent avec lui. */
+    var polquizWrap = document.getElementById('polquizWrap');
+    var polquizQuestionEl = document.getElementById('polquizQuestion');
+    var polquizDoneEl = document.getElementById('polquizDone');
+    var polquizText = document.getElementById('polquizText');
+    var polquizOptionsEl = document.getElementById('polquizOptions');
+    var polquizStepEl = document.getElementById('polquizStep');
+    var polquizBarEl = document.getElementById('polquizBar');
+
+    var polquizRecord = null;   // enregistrement de mon îlot, ou null
+    var polquizSaving = false;  // anti-double-tap pendant l'écriture réseau
+
+    function renderPolquiz() {
+      var given = (polquizRecord && polquizRecord.answers) || {};
+      var i = 0;
+      for (; i < POLQUIZ.length; i++) {
+        if (!given[POLQUIZ[i].key]) break;
+      }
+
+      if (i >= POLQUIZ.length) {
+        polquizQuestionEl.hidden = true;
+        polquizDoneEl.hidden = false;
+        return;
+      }
+      polquizQuestionEl.hidden = false;
+      polquizDoneEl.hidden = true;
+
+      var q = POLQUIZ[i];
+      polquizStepEl.textContent = 'Question ' + (i + 1) + ' sur ' + POLQUIZ.length;
+      polquizBarEl.style.width = Math.round((i / POLQUIZ.length) * 100) + '%';
+      polquizText.textContent = q.text;
+
+      polquizOptionsEl.textContent = '';
+      q.options.forEach(function (opt) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = opt.label;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function () { answerPolquiz(q, opt); });
+        polquizOptionsEl.appendChild(b);
+      });
+    }
+
+    function answerPolquiz(q, opt) {
+      if (!(myIsland > 0) || polquizSaving) return;
+      polquizSaving = true;
+
+      var given = Object.assign({}, (polquizRecord && polquizRecord.answers) || {});
+      given[q.key] = opt.key;
+
+      var op = polquizRecord
+        ? App.pb.collection('polquiz_answers').update(polquizRecord.id, { answers: given })
+        : App.pb.collection('polquiz_answers').create({ island: myIsland, answers: given });
+
+      op.then(function (rec) {
+        polquizRecord = rec;
+        renderPolquiz();
+      }).catch(function (e) {
+        console.warn('pol’ quiz non enregistré — la saisie est peut-être fermée', e);
+      }).finally(function () { polquizSaving = false; });
+    }
+
+    function loadPolquiz() {
+      if (!(myIsland > 0)) return Promise.resolve();
+      return App.pb.collection('polquiz_answers').getFirstListItem(
+        'island = ' + myIsland, { requestKey: null }
+      ).then(function (rec) {
+        polquizRecord = rec;
+        renderPolquiz();
+      }).catch(function (e) {
+        if (e && e.status === 404) {
+          polquizRecord = null;
+          renderPolquiz();
+          return;
+        }
+        console.warn('pol’ quiz illisible', e);
+      });
+    }
+
+    var polquizSubscribed = false;
+    function watchPolquiz() {
+      if (polquizSubscribed) return;
+      polquizSubscribed = true;
+      App.pb.collection('polquiz_answers').subscribe('*', function () {
+        loadPolquiz();
+      }).catch(function (e) { console.warn('abonnement pol’ quiz refusé', e); });
+    }
+
     /* ---- Vote -------------------------------------------------------------
      * Une pile de cartes, une carte à la fois, quatre issues. `skip` est
      * enregistré comme les autres pour ne pas re-servir la carte (spec §6.3),
@@ -1070,13 +1236,9 @@
           box.appendChild(count);
         } else {
           var opts = document.createElement('div');
-          opts.className = 'fq-options';
-          q.options.forEach(function (o) {
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.textContent = o.label;
-            b.setAttribute('aria-pressed', 'false');
-            b.addEventListener('click', function () {
+          opts.className = 'fq-options likert';
+          q.options.forEach(function (o, i) {
+            var b = likertButton(o, i + 1, false, function () {
               fbAnswers[q.key] = o.key;
               Array.prototype.forEach.call(opts.children, function (el) {
                 el.setAttribute('aria-pressed', el === b ? 'true' : 'false');
