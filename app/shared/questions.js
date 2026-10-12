@@ -202,55 +202,136 @@ window.FEEDBACK = [
 /* ---------------------------------------------------------------------------
  * Annexe C : « Pol' quiz » — entre Îlots et Propositions.
  *
- * Contrairement aux mission/clôture (une réponse par personne), le quiz se
- * répond UNE FOIS PAR ÎLOT : n'importe qui à la table répond, tout le monde
- * à la même table voit la même question avancer en direct (même mécanique de
- * synchronisation que `propositions`, par `island` — voir app/index.html et
- * spec §2.5/§6.1). Rien n'empêche une bonne réponse factuelle à l'occasion,
- * mais l'objectif est de faire parler la table, pas de la piéger : contenu
- * volontairement intemporel (pas d'actualité qui périme), à ajuster ici sans
- * toucher au code.
+ * Contenu entièrement remplacé le 12 oct. (format jeu, avec sources) et
+ * mécanique revue le même jour : la régie mène le tempo, plus l'îlot. Une
+ * réponse par îlot (le « scribe » de la tablée répond pour tous), mais
+ * QUELLE question est à l'écran est décidé par `session.polquiz_question` +
+ * `polquiz_phase` ('question' | 'reveal'), pas par la progression de
+ * l'îlot — voir app/index.html et spec §2.6 (révisée).
+ *
+ * `correct` = la clé d'option exacte. `explanation`/`source` ne s'affichent
+ * qu'en phase `reveal`. `category` est le petit sous-titre de la question
+ * (« Question N · … »).
+ *
+ * La dernière entrée, `spare: true`, est une question de secours — jamais
+ * jouée dans l'enchaînement normal des 6 premières, sélectionnable à la
+ * main par la régie si besoin (exæquo, question qui tombe à plat).
+ *
+ * Sources : Cevipof (Baromètre de la confiance politique, vague 17, janvier
+ * 2026), sauf Q2 (IPP, note n°87, févr. 2023 / Observatoire des inégalités)
+ * et Q3 (étude Martial Foucault pour l'AMF, juin 2025, données ministère de
+ * l'Intérieur) et Q4 (ministère de l'Intérieur, résultats officiels, 30 juin
+ * 2024).
  */
 window.POLQUIZ = [
   {
     key: 'pq1',
-    text: 'Quel pays est considéré comme le berceau de la démocratie ?',
+    category: 'Question 1 · La relation entre élus et citoyens',
+    text: 'Quel responsable politique inspire le plus confiance aux Français ?',
     options: [
-      { key: 'pq1_c1', label: 'La Grèce antique' },
-      { key: 'pq1_c2', label: 'La Rome antique' },
-      { key: 'pq1_c3', label: 'Le Royaume-Uni' },
-      { key: 'pq1_c4', label: 'La France' }
-    ]
+      { key: 'pq1_c1', label: 'Le président de la République' },
+      { key: 'pq1_c2', label: 'Le député' },
+      { key: 'pq1_c3', label: 'Le maire' },
+      { key: 'pq1_c4', label: 'Le conseiller régional' }
+    ],
+    correct: 'pq1_c3',
+    explanation: '60 % des Français font confiance au maire de leur commune, contre 34 % à leur député et 18 % au président de la République. Plus l’élu est proche, plus on lui fait confiance.',
+    source: 'Cevipof, Baromètre de la confiance politique, vague 17, janvier 2026.'
   },
   {
     key: 'pq2',
-    text: 'En France, à partir de quel âge peut-on voter ?',
+    category: 'Question 2 · Le profil des responsables politiques',
+    text: 'Sur les 577 députés élus en 2022, combien sont ouvriers ?',
     options: [
-      { key: 'pq2_c1', label: '16 ans' },
-      { key: 'pq2_c2', label: '18 ans' },
-      { key: 'pq2_c3', label: '21 ans' },
-      { key: 'pq2_c4', label: '25 ans' }
-    ]
+      { key: 'pq2_c1', label: '8' },
+      { key: 'pq2_c2', label: '35' },
+      { key: 'pq2_c3', label: '72' },
+      { key: 'pq2_c4', label: '110' }
+    ],
+    correct: 'pq2_c1',
+    explanation: '8 députés sur 577 sont ouvriers, soit 1,4 %, alors que les ouvriers représentent 19 % de la population active. Les cadres supérieurs et professions intellectuelles supérieures représentent environ 70 % des députés.',
+    source: 'Institut des politiques publiques, note n°87, février 2023, reprise par l’Observatoire des inégalités.'
   },
   {
     key: 'pq3',
-    text: 'D’où vient le mot « démocratie » ?',
+    category: 'Question 3 · L’attractivité des fonctions politiques',
+    text: 'Combien de maires ont démissionné entre juillet 2020 et mars 2025 ?',
     options: [
-      { key: 'pq3_c1', label: 'Du grec, « le pouvoir du peuple »' },
-      { key: 'pq3_c2', label: 'Du latin, « le pouvoir de la loi »' },
-      { key: 'pq3_c3', label: 'De l’arabe, « l’assemblée »' },
-      { key: 'pq3_c4', label: 'Un mot moderne, né au XIXe siècle' }
-    ]
+      { key: 'pq3_c1', label: 'Environ 200' },
+      { key: 'pq3_c2', label: 'Environ 700' },
+      { key: 'pq3_c3', label: 'Plus de 2 000' },
+      { key: 'pq3_c4', label: 'Plus de 6 000' }
+    ],
+    correct: 'pq3_c3',
+    explanation: '2 189 maires ont démissionné, soit 417 par an en moyenne, contre 129 par an pendant le mandat 2009-2014.',
+    source: 'Étude de Martial Foucault (Cevipof) pour l’Association des maires de France, juin 2025, à partir des données du ministère de l’Intérieur.'
   },
   {
-    // Pas de bonne réponse ici — c'est pour faire parler l'îlot, pas un test.
     key: 'pq4',
-    text: 'Pour votre îlot, qu’est-ce qui compte le plus dans un bon débat ?',
+    category: 'Question 4 · La relation entre élus et citoyens',
+    text: 'Quel a été le taux de participation au premier tour des élections législatives de 2024 ?',
     options: [
-      { key: 'pq4_c1', label: 'Écouter' },
-      { key: 'pq4_c2', label: 'Convaincre' },
-      { key: 'pq4_c3', label: 'Être honnête' },
-      { key: 'pq4_c4', label: 'Être drôle' }
-    ]
+      { key: 'pq4_c1', label: '47 %' },
+      { key: 'pq4_c2', label: '57 %' },
+      { key: 'pq4_c3', label: '67 %' },
+      { key: 'pq4_c4', label: '77 %' }
+    ],
+    correct: 'pq4_c3',
+    explanation: '66,7 % des inscrits ont voté au premier tour, contre 47,5 % en 2022. C’est la participation la plus forte à des législatives depuis 1997.',
+    source: 'Ministère de l’Intérieur, résultats officiels du premier tour, 30 juin 2024.'
+  },
+  {
+    key: 'pq5',
+    category: 'Question 5 · La transparence de la vie publique',
+    text: 'En Allemagne, 49 % des citoyens jugent leurs élus et dirigeants politiques plutôt corrompus. Quelle est cette part en France ?',
+    options: [
+      { key: 'pq5_c1', label: '36 %' },
+      { key: 'pq5_c2', label: '56 %' },
+      { key: 'pq5_c3', label: '76 %' },
+      { key: 'pq5_c4', label: '96 %' }
+    ],
+    correct: 'pq5_c3',
+    explanation: '76 % des Français jugent leurs élus et dirigeants politiques plutôt corrompus, et 22 % les jugent plutôt honnêtes. C’est 27 points de plus qu’en Allemagne.',
+    source: 'Cevipof, Baromètre de la confiance politique, vague 17, janvier 2026.'
+  },
+  {
+    key: 'pq6',
+    category: 'Question 6 · Le rôle des partis politiques',
+    text: 'Quelle part des Français fait confiance aux partis politiques ?',
+    options: [
+      { key: 'pq6_c1', label: '15 %' },
+      { key: 'pq6_c2', label: '30 %' },
+      { key: 'pq6_c3', label: '45 %' },
+      { key: 'pq6_c4', label: '60 %' }
+    ],
+    correct: 'pq6_c1',
+    explanation: '15 % des Français font confiance aux partis politiques, autant qu’aux réseaux sociaux. Ils sont 37 % à faire confiance aux syndicats et 82 % à la science.',
+    source: 'Cevipof, Baromètre de la confiance politique, vague 17, janvier 2026.'
+  },
+  {
+    key: 'pq_spare',
+    spare: true,
+    category: 'Question de rechange',
+    text: 'Quelle part des Français se dit intéressée par la politique ?',
+    options: [
+      { key: 'pq_spare_c1', label: '23 %' },
+      { key: 'pq_spare_c2', label: '38 %' },
+      { key: 'pq_spare_c3', label: '53 %' },
+      { key: 'pq_spare_c4', label: '68 %' }
+    ],
+    correct: 'pq_spare_c3',
+    explanation: '53 % des Français se disent intéressés par la politique, alors que 78 % déclarent ne pas lui faire confiance.',
+    source: 'Cevipof, Baromètre de la confiance politique, vague 17, janvier 2026.'
   }
 ];
+
+/* Consigne affichée une fois, avant la première question (participant et
+ * projection). Le "une minute" ici est le temps de concertation à la table
+ * avant de répondre — distinct du minuteur de 30 s affiché une fois la
+ * question lancée (c'est une mise en ambiance, pas une horloge unique). */
+window.POLQUIZ_INTRO = 'Place au Pol’ quiz ! Désignez le scribe de votre tablée : ' +
+  'c’est lui qui répond, et c’est lui qui notera vos idées tout au long de la ' +
+  'soirée. Pour chaque question, vous avez une minute pour vous mettre d’accord.';
+
+// Durée du minuteur visuel par question, en secondes (spec §2.6).
+window.POLQUIZ_COUNTDOWN = 30;

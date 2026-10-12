@@ -118,6 +118,12 @@
     }
     .prop-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
 
+    .pq-rank-row {
+      display: flex; justify-content: space-between; gap: 10px;
+      padding: 4px 0; font-size: 14px; border-bottom: 1px solid var(--line);
+    }
+    .pq-rank-row:first-child { font-weight: 600; }
+
     .topbar {
       display: flex; align-items: baseline; justify-content: space-between;
       gap: 16px; margin-bottom: 4px;
@@ -253,6 +259,24 @@
         <p class="note">
           Cinq énoncés par page, du plus consensuel au plus clivant.
         </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pol’ quiz — <code>polquiz_question</code> / <code>polquiz_phase</code></legend>
+        <p class="note">
+          C'est ce bouton qui fait avancer la salle, pas les îlots : tant que
+          vous ne cliquez pas, tout le monde reste sur la même question.
+        </p>
+        <p class="note" id="polquizState"></p>
+        <p class="note" id="polquizAnswered"></p>
+        <div class="grid">
+          <button id="polquizNext" type="button">Démarrer</button>
+          <button id="polquizReveal" type="button">Révéler la réponse</button>
+          <button id="polquizSpare" type="button">Question de rechange</button>
+          <button id="polquizFinish" type="button">Terminer — calculer le classement</button>
+          <button id="polquizReset" type="button">Recommencer</button>
+        </div>
+        <div id="polquizRanking"></div>
       </fieldset>
 
       <fieldset>
@@ -1232,6 +1256,140 @@
         : 'Connexion…';
     });
 
+    /* ---- Pol' quiz ----------------------------------------------------------
+     * C'est la régie qui mène le tempo (spec §2.6, révisé le 12 oct.) :
+     * `session.polquiz_question`/`polquiz_phase` disent quelle question est
+     * à l'écran et dans quelle phase, pas la progression des îlots. Le
+     * classement final est calculé ICI (régie, déjà authentifiée
+     * `facilitators`, lit déjà toutes les réponses sans règle à assouplir)
+     * et écrit dans `session.polquiz_ranking` — la projection, publique, le
+     * lit directement sur `session` sans jamais toucher `polquiz_answers`. */
+    var POLQUIZ_MAIN = POLQUIZ.filter(function (q) { return !q.spare; });
+
+    var polquizStateEl = document.getElementById('polquizState');
+    var polquizAnsweredEl = document.getElementById('polquizAnswered');
+    var polquizNextBtn = document.getElementById('polquizNext');
+    var polquizRevealBtn = document.getElementById('polquizReveal');
+    var polquizSpareBtn = document.getElementById('polquizSpare');
+    var polquizFinishBtn = document.getElementById('polquizFinish');
+    var polquizResetBtn = document.getElementById('polquizReset');
+    var polquizRankingEl = document.getElementById('polquizRanking');
+
+    function polquizByKey(key) {
+      for (var i = 0; i < POLQUIZ.length; i++) {
+        if (POLQUIZ[i].key === key) return POLQUIZ[i];
+      }
+      return null;
+    }
+
+    function renderRanking(ranking) {
+      polquizRankingEl.textContent = '';
+      ranking.forEach(function (r) {
+        var row = document.createElement('div');
+        row.className = 'pq-rank-row';
+        var isl = document.createElement('span');
+        isl.textContent = 'Îlot ' + r.island;
+        var score = document.createElement('span');
+        score.textContent = r.correct + ' bonne(s) réponse(s)';
+        row.appendChild(isl); row.appendChild(score);
+        polquizRankingEl.appendChild(row);
+      });
+    }
+
+    function loadPolquizStats(s) {
+      R().collection('polquiz_answers').getFullList({ requestKey: null })
+        .then(function (rows) {
+          var q = polquizByKey(s.polquiz_question);
+          if (q && (s.polquiz_phase === 'question' || s.polquiz_phase === 'reveal')) {
+            var answered = rows.filter(function (r) { return r.answers && r.answers[q.key]; }).length;
+            polquizAnsweredEl.textContent = answered + ' / ' + s.islands_count + ' îlot(s) ont répondu à cette question.';
+          } else {
+            polquizAnsweredEl.textContent = '';
+          }
+        })
+        .catch(function () { polquizAnsweredEl.textContent = ''; });
+
+      if (s.polquiz_phase === 'done' && s.polquiz_ranking) {
+        renderRanking(s.polquiz_ranking);
+      } else {
+        polquizRankingEl.textContent = '';
+      }
+    }
+
+    function renderPolquizControl(s) {
+      var q = polquizByKey(s.polquiz_question);
+      var phase = s.polquiz_phase;
+
+      if (phase === 'done') {
+        polquizStateEl.textContent = 'Terminé — classement calculé, visible sur la projection.';
+      } else if (!q || phase === 'idle' || !phase) {
+        polquizStateEl.textContent = 'Pas commencé — les participants voient la consigne.';
+      } else {
+        var idx = POLQUIZ_MAIN.indexOf(q);
+        var label = q.spare ? 'question de rechange' : ('question ' + (idx + 1) + '/' + POLQUIZ_MAIN.length);
+        polquizStateEl.textContent = (phase === 'reveal' ? 'Réponse révélée — ' : 'En cours — ') +
+          label + ' : « ' + q.text + ' »';
+      }
+
+      polquizNextBtn.textContent = (!q || phase === 'idle' || !phase || phase === 'done')
+        ? 'Démarrer' : 'Question suivante';
+      polquizRevealBtn.disabled = !(q && phase === 'question');
+
+      loadPolquizStats(s);
+    }
+
+    polquizNextBtn.addEventListener('click', function () {
+      ok();
+      var s = App.session;
+      if (!s) return;
+      var current = polquizByKey(s.polquiz_question);
+      var idx = (current && !current.spare) ? POLQUIZ_MAIN.indexOf(current) : -1;
+      var next = POLQUIZ_MAIN[idx + 1];
+      if (!next) {
+        fail('Plus de question dans l’enchaînement — cliquez « Terminer » pour calculer le classement.');
+        return;
+      }
+      patch({ polquiz_question: next.key, polquiz_phase: 'question', polquiz_started_at: Date.now() })
+        .catch(fail);
+    });
+
+    polquizRevealBtn.addEventListener('click', function () {
+      ok();
+      patch({ polquiz_phase: 'reveal' }).catch(fail);
+    });
+
+    polquizSpareBtn.addEventListener('click', function () {
+      ok();
+      var spare = POLQUIZ.filter(function (q) { return q.spare; })[0];
+      if (!spare) return;
+      patch({ polquiz_question: spare.key, polquiz_phase: 'question', polquiz_started_at: Date.now() })
+        .catch(fail);
+    });
+
+    polquizFinishBtn.addEventListener('click', function () {
+      ok();
+      R().collection('polquiz_answers').getFullList({ requestKey: null })
+        .then(function (rows) {
+          var ranking = rows.map(function (r) {
+            var correct = 0;
+            POLQUIZ.forEach(function (q) {
+              if (r.answers && r.answers[q.key] === q.correct) correct++;
+            });
+            return { island: r.island, correct: correct };
+          }).sort(function (a, b) { return b.correct - a.correct; });
+          return patch({ polquiz_ranking: ranking, polquiz_phase: 'done' });
+        })
+        .catch(fail);
+    });
+
+    polquizResetBtn.addEventListener('click', function () {
+      ok();
+      patch({
+        polquiz_question: '', polquiz_phase: 'idle',
+        polquiz_started_at: 0, polquiz_ranking: null
+      }).catch(fail);
+    });
+
     App.onSession(function (s) {
       now.textContent = 'stage : ' + s.stage + ' · îlots : ' + s.islands_count;
 
@@ -1265,6 +1423,8 @@
       if (!propListEl.childElementCount) loadProps();
       if (!fbStats.textContent) loadFeedbackCount();
       if (!matchingRosterEl.childElementCount) loadMatchingRoster();
+
+      renderPolquizControl(s);
     });
 
     /* ---- Connexion --------------------------------------------------------

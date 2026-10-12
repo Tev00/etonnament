@@ -344,26 +344,85 @@ régie et participant lisent la même chaîne sans conversion mentale. Sert à
 localiser quelqu'un dans le roster (paire cassée, îlot égaré), pas à
 attirer l'œil du participant lui-même.
 
-### 2.6 Pol' quiz — entre `ilots` et `propositions` (ajouté le 9 oct.)
+### 2.6 Pol' quiz — entre `ilots` et `propositions` (ajouté le 9 oct., format
+jeu ajouté le 12 oct.)
 
-Mini-quiz à choix unique (questions.js, `window.POLQUIZ`, 4 questions
-d'exemple — contenu volontairement intemporel, à ajuster sans toucher au
-code), affiché sur le stage `polquiz`, gardé par le booléen `polquiz_open`
-comme les autres phases (§3, §4).
+Quiz à choix unique sur la confiance politique, avec sources (questions.js,
+`window.POLQUIZ`, 6 questions + 1 question de rechange — `spare: true`,
+jamais jouée dans l'enchaînement normal), affiché sur le stage `polquiz`,
+gardé par le booléen `polquiz_open` comme les autres phases (§3, §4).
 
-Différence structurante avec la mission d'entrée : **une réponse par îlot**,
-pas une par personne — même logique de synchronisation partagée que
-`propositions` (§1.4), pas celle de la mission. Une nouvelle collection,
-`polquiz_answers`, porte un enregistrement par îlot (`island`, number) avec
-un champ `answers` (json, `{ pq1: 'pq1_c2', … }`) — une seule ligne par îlot,
-pas une ligne par question comme `propositions` (deux champs suffisent, pas
-besoin de « slots »). Quiconque à la table répond écrit dans ce même
-enregistrement ; tous les téléphones abonnés (subscribe sur la collection,
-filtrage local par `island`) avancent ensemble à la question suivante — le
-participant qui tape ne voit **pas** un état différent de ses voisins de
-table une fois la réponse partie, exactement comme pour les propositions.
+**Une réponse par îlot** (le « scribe » de la tablée répond pour tous),
+même logique de stockage que `propositions` — `polquiz_answers`, un
+enregistrement par îlot (`island` number, `answers` json
+`{ pq1: 'pq1_c2', … }`). Ça, ça n'a pas changé le 12 oct. Ce qui a changé :
+**c'est la régie qui mène le tempo, pas l'îlot.** Avant, chaque îlot
+avançait à son rythme (première question sans réponse). Depuis le 12 oct.,
+l'état du jeu — quelle question, dans quelle phase — vit dans `session` et
+est le même pour toute la salle :
 
-Règles d'API (mêmes que `propositions`, §4) :
+| Champ | Type | Rôle |
+|---|---|---|
+| `polquiz_question` | text | clé de la question à l'écran, `''` = pas commencé |
+| `polquiz_phase` | select | `idle` \| `question` \| `reveal` \| `done` |
+| `polquiz_started_at` | number | `Date.now()` au lancement de la question — sert de référence au minuteur visuel, partagée par tous les téléphones |
+| `polquiz_ranking` | json | classement final, écrit par la régie à la clôture (voir plus bas) — `[{ island, correct }, …]` |
+
+Déroulé d'une question, entièrement au clic régie (`regie.html`, fieldset
+Pol' quiz) :
+
+1. **« Démarrer » / « Question suivante »** — avance à la question suivante
+   de l'enchaînement principal (les 6 non-`spare`, dans l'ordre du tableau),
+   passe `polquiz_phase` à `question`, pose `polquiz_started_at = Date.now()`.
+   L'îlot peut taper une réponse, la changer, retaper — rien n'est verrouillé
+   tant que la régie n'a pas révélé.
+2. **Minuteur de 30 s, purement visuel** (`window.POLQUIZ_COUNTDOWN`) —
+   calculé côté client à partir de `polquiz_started_at`, identique sur tous
+   les téléphones et sur la projection puisqu'ils partent tous de la même
+   valeur. Il n'arrête rien tout seul : c'est un choix délibéré (confirmé
+   avec Paul) — la régie regarde la salle, pas l'horloge, et clique
+   « Révéler » quand elle juge que c'est le moment, avant ou après 30 s.
+3. **« Révéler la réponse »** — passe `polquiz_phase` à `reveal`. Les
+   téléphones et la projection affichent alors la bonne réponse en relief,
+   l'explication et la source (`q.correct`/`q.explanation`/`q.source`).
+   Les boutons de réponse se désactivent **côté client seulement** (confirmé
+   avec Paul : pas de verrou serveur — même niveau de confiance que le
+   reste de l'app participant, pas un examen à l'épreuve de la triche).
+4. **« Question de rechange »** — bascule directement sur `pq_spare`,
+   disponible à tout moment si une question tombe à plat ou pour départager
+   un ex æquo.
+5. **« Terminer — calculer le classement »** — la régie (déjà authentifiée
+   `facilitators`, déjà en lecture sur `polquiz_answers` de toute façon) lit
+   TOUS les enregistrements, compte les bonnes réponses par îlot en
+   comparant à `q.correct` pour chaque question de `POLQUIZ` (`spare`
+   compris, au cas où elle a servi), trie par score décroissant, et écrit
+   le résultat dans `session.polquiz_ranking` avant de passer `polquiz_phase`
+   à `done`.
+6. **« Recommencer »** — remet tout à `idle`/`''`/`0`/`null`.
+
+**Pourquoi le classement passe par `session` et pas par une règle
+assouplie sur `polquiz_answers`** : la règle de lecture reste identique à
+`propositions` (§1.4, §4) — un îlot ne lit que ses propres réponses,
+jamais celles des autres tables. Le classement final concerne TOUTES les
+tables à la fois ; plutôt que d'ouvrir `polquiz_answers` en lecture
+publique (risque faible — un score de quiz n'a rien de la sensibilité
+politique d'une proposition — mais un changement de principe de
+confidentialité pour un gain évitable), c'est la régie qui calcule et
+publie un instantané dans `session`, déjà 100 % public en lecture. Même
+raisonnement, même patron que `text_summary` pour le résumé IA (§2.4) :
+un calcul fait une fois, côté facilitateur, écrit dans `session`, lu tel
+quel par tout le monde.
+
+**Où ça s'affiche** : la projection (`projection.html`) montre la consigne,
+la question + minuteur, la révélation, puis le classement, automatiquement
+dès que `stage = 'polquiz'` — pas besoin que la régie bascule un
+`projection_view` séparé, contrairement aux vues mission/vote. Les
+téléphones participants montrent la même chose EXCEPT le classement final :
+en phase `done`, ils affichent juste « regardez l'écran » (décision Paul,
+cohérente avec le fait qu'aucun autre résultat agrégé — vote, mission — ne
+s'affiche jamais par îlot sur le téléphone, toujours sur la projection).
+
+Règles d'API sur `polquiz_answers` (inchangées depuis le 9 oct.) :
 
 ```
 list/view : island = @request.auth.island || FACILITATOR
@@ -372,15 +431,14 @@ update    : idem create, ou FACILITATOR
 delete    : FACILITATOR
 ```
 
-✅ **Fait le 12 oct.** : `session.polquiz_open` (bool, défaut `false`) et la
+✅ **Schéma complet sur l'instance live** : `polquiz_open`/`polquiz_question`/
+`polquiz_phase`/`polquiz_started_at`/`polquiz_ranking` sur `session`, et la
 collection `polquiz_answers` (`island` number requis, `answers` json,
-`created`/`updated` autodate, les quatre règles ci-dessus) existent sur
-l'instance live — créés via l'API superuser (`_superusers/auth-with-password`
-puis `PATCH`/`POST /api/collections`), pas par ce dépôt (toujours pas de
-migration automatisée ; créer une collection depuis un hook applicatif
-reviendrait à lui donner un accès qu'on retire explicitement au participant
-partout ailleurs, §4 point 1). Vérifié : liste anonyme sur `polquiz_answers`
-renvoie `0 items`, pas une fuite.
+`created`/`updated` autodate, les quatre règles ci-dessus) — tout créé via
+l'API superuser (`_superusers/auth-with-password` puis `PATCH`/
+`POST /api/collections`), pas par ce dépôt (toujours pas de migration
+automatisée). Vérifié à chaque ajout : liste anonyme sur `polquiz_answers`
+renvoie toujours `0 items`, pas une fuite.
 
 ### 2.7 Édition régie des propositions (ajouté le 12 oct.)
 

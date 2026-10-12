@@ -99,6 +99,69 @@
       text-align: left;
     }
 
+    /* ---- Pol' quiz ---- affiché quand stage = polquiz, pas via un bouton
+       « vue » de la régie (contrairement à entryview/voteview) : il n'y a
+       aucune raison de préférer le titre générique pendant cette phase. */
+    #polquizview { display: none; width: min(1200px, 90vw); text-align: left; }
+    #polquizview.is-active { display: block; }
+    #pqIntro, #pqQuestion, #pqReveal, #pqRankingView { display: none; }
+    #pqIntro.is-active, #pqQuestion.is-active, #pqReveal.is-active, #pqRankingView.is-active { display: block; }
+
+    .pq-intro-text {
+      font-size: clamp(22px, 3.2vw, 46px);
+      line-height: 1.35;
+      max-width: 36ch;
+    }
+    .pq-category {
+      font-size: clamp(14px, 1.5vw, 24px);
+      color: var(--ink-muted);
+      margin-bottom: 1.5vh;
+    }
+    .pq-qtext {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(28px, 3.6vw, 58px);
+      line-height: 1.15;
+      margin: 0 0 2.5vh;
+    }
+    .pq-countdown {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: clamp(30px, 4vw, 60px);
+      color: var(--accent);
+      margin-bottom: 2.5vh;
+    }
+    .pq-opts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2vh 2vw;
+    }
+    .pq-opt {
+      font-size: clamp(16px, 1.9vw, 32px);
+      padding: 1.4vh 1.4vw;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .pq-opt.correct {
+      border-color: var(--ok);
+      border-width: 3px;
+      background: color-mix(in srgb, var(--ok) 14%, transparent);
+      font-weight: 700;
+    }
+    .pq-explanation { font-size: clamp(16px, 1.9vw, 32px); line-height: 1.35; margin: 2.5vh 0 1vh; max-width: 60ch; }
+    .pq-source { font-size: clamp(12px, 1.2vw, 20px); color: var(--ink-muted); }
+
+    .pq-rank-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 2vw;
+      font-size: clamp(18px, 2.4vw, 40px);
+      padding: 1vh 0;
+      border-bottom: 1px solid var(--line);
+      max-width: 50ch;
+    }
+    .pq-rank-row:first-child { font-family: "Londrina Solid", sans-serif; font-weight: 900; }
+
     /* ---- résultats du vote ---- */
     #voteview { display: none; width: min(1600px, 94vw); }
     #voteview.is-active { display: block; }
@@ -174,6 +237,34 @@
     <h2 class="eq" id="eq"></h2>
     <div class="bars" id="bars"></div>
     <div class="etotal" id="etotal"></div>
+  </div>
+
+  <div id="polquizview">
+    <div class="kicker" id="pqKicker">Pol’ quiz</div>
+
+    <div id="pqIntro">
+      <p class="pq-intro-text" id="pqIntroText"></p>
+    </div>
+
+    <div id="pqQuestion">
+      <div class="pq-category" id="pqCategory"></div>
+      <h2 class="pq-qtext" id="pqQtext"></h2>
+      <div class="pq-countdown" id="pqCountdown"></div>
+      <div class="pq-opts" id="pqOpts"></div>
+    </div>
+
+    <div id="pqReveal">
+      <div class="pq-category" id="pqRevealCategory"></div>
+      <h2 class="pq-qtext" id="pqRevealQtext"></h2>
+      <div class="pq-opts" id="pqRevealOpts"></div>
+      <p class="pq-explanation" id="pqExplanation"></p>
+      <p class="pq-source" id="pqSource"></p>
+    </div>
+
+    <div id="pqRankingView">
+      <div class="kicker">Classement des tablées</div>
+      <div id="pqRankRows"></div>
+    </div>
   </div>
 
   <div id="voteview">
@@ -448,12 +539,123 @@
       renderVote();
     });
 
+    /* ---- Pol' quiz ---------------------------------------------------------
+     * Affiché dès que `stage === 'polquiz'` — pas de bouton « vue » régie
+     * séparé comme entry/vote : il n'y a rien d'autre d'utile à montrer
+     * pendant cette phase. Le contenu (question courante, phase, et le
+     * classement une fois calculé) vient entièrement de `session`
+     * (`polquiz_question`/`polquiz_phase`/`polquiz_ranking`) — cette page
+     * n'interroge jamais `polquiz_answers` directement (spec §2.6 révisée). */
+    var polquizview = document.getElementById('polquizview');
+    var pqIntroEl = document.getElementById('pqIntro');
+    var pqIntroTextEl = document.getElementById('pqIntroText');
+    var pqQuestionEl = document.getElementById('pqQuestion');
+    var pqCategoryEl = document.getElementById('pqCategory');
+    var pqQtextEl = document.getElementById('pqQtext');
+    var pqCountdownEl = document.getElementById('pqCountdown');
+    var pqOptsEl = document.getElementById('pqOpts');
+    var pqRevealEl = document.getElementById('pqReveal');
+    var pqRevealCategoryEl = document.getElementById('pqRevealCategory');
+    var pqRevealQtextEl = document.getElementById('pqRevealQtext');
+    var pqRevealOptsEl = document.getElementById('pqRevealOpts');
+    var pqExplanationEl = document.getElementById('pqExplanation');
+    var pqSourceEl = document.getElementById('pqSource');
+    var pqRankingViewEl = document.getElementById('pqRankingView');
+    var pqRankRowsEl = document.getElementById('pqRankRows');
+
+    var pqCountdownTimer = null;
+    function stopPqCountdown() {
+      if (pqCountdownTimer) { clearInterval(pqCountdownTimer); pqCountdownTimer = null; }
+    }
+    function startPqCountdown(startedAt) {
+      stopPqCountdown();
+      function tick() {
+        var elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        var left = Math.max(0, window.POLQUIZ_COUNTDOWN - elapsed);
+        pqCountdownEl.textContent = left + ' s';
+      }
+      tick();
+      pqCountdownTimer = setInterval(tick, 1000);
+    }
+
+    function pqByKey(key) {
+      for (var i = 0; i < POLQUIZ.length; i++) {
+        if (POLQUIZ[i].key === key) return POLQUIZ[i];
+      }
+      return null;
+    }
+
+    function renderPolquizView(s) {
+      pqIntroEl.classList.remove('is-active');
+      pqQuestionEl.classList.remove('is-active');
+      pqRevealEl.classList.remove('is-active');
+      pqRankingViewEl.classList.remove('is-active');
+      stopPqCountdown();
+
+      var phase = s.polquiz_phase;
+      var q = pqByKey(s.polquiz_question);
+
+      if (phase === 'done') {
+        pqRankingViewEl.classList.add('is-active');
+        pqRankRowsEl.textContent = '';
+        (s.polquiz_ranking || []).forEach(function (r) {
+          var row = document.createElement('div');
+          row.className = 'pq-rank-row';
+          var isl = document.createElement('span');
+          isl.textContent = 'Îlot ' + r.island;
+          var score = document.createElement('span');
+          score.textContent = r.correct + ' bonne(s) réponse(s)';
+          row.appendChild(isl); row.appendChild(score);
+          pqRankRowsEl.appendChild(row);
+        });
+        return;
+      }
+
+      if (!q || phase === 'idle' || !phase) {
+        pqIntroEl.classList.add('is-active');
+        pqIntroTextEl.textContent = window.POLQUIZ_INTRO;
+        return;
+      }
+
+      if (phase === 'reveal') {
+        pqRevealEl.classList.add('is-active');
+        pqRevealCategoryEl.textContent = q.category || '';
+        pqRevealQtextEl.textContent = q.text;
+        pqRevealOptsEl.textContent = '';
+        q.options.forEach(function (opt) {
+          var row = document.createElement('div');
+          row.className = 'pq-opt' + (opt.key === q.correct ? ' correct' : '');
+          row.textContent = opt.label;
+          pqRevealOptsEl.appendChild(row);
+        });
+        pqExplanationEl.textContent = q.explanation || '';
+        pqSourceEl.textContent = q.source || '';
+        return;
+      }
+
+      // phase === 'question'
+      pqQuestionEl.classList.add('is-active');
+      pqCategoryEl.textContent = q.category || '';
+      pqQtextEl.textContent = q.text;
+      if (s.polquiz_started_at) startPqCountdown(s.polquiz_started_at);
+      pqOptsEl.textContent = '';
+      q.options.forEach(function (opt) {
+        var row = document.createElement('div');
+        row.className = 'pq-opt';
+        row.textContent = opt.label;
+        pqOptsEl.appendChild(row);
+      });
+    }
+
     App.onSession(function (s) {
       var showEntry = s.projection_view === 'entry';
       var showVote = s.projection_view === 'vote';
+      var showPolquiz = s.stage === 'polquiz';
       entryview.classList.toggle('is-active', showEntry);
       voteview.classList.toggle('is-active', showVote);
-      stageview.classList.toggle('is-hidden', showEntry || showVote);
+      polquizview.classList.toggle('is-active', showPolquiz);
+      stageview.classList.toggle('is-hidden', showEntry || showVote || showPolquiz);
+      if (showPolquiz) renderPolquizView(s);
 
       if (typeof s.projection_page === 'number' && s.projection_page !== votePage) {
         votePage = s.projection_page;

@@ -1,9 +1,11 @@
 ÉTONNAMMENT D'ACCORD — INVENTAIRE DES TEXTES DE L'INTERFACE
 Généré le 10 septembre 2026, mis à jour le 12 octobre 2026 (contenu de la
 mission d'entrée ET du questionnaire de clôture entièrement remplacés pour
-le second événement — voir plus bas ; édition régie des propositions
-ajoutée le même jour ; échelles de Likert à 5 degrés, stage « Pol' quiz »,
-renommage des boutons de régie restent de la mise à jour du 9 octobre).
+le second événement ; édition régie des propositions ajoutée ; Pol' quiz
+entièrement refait en format jeu mené par la régie, avec sources — voir
+plus bas pour les trois ; échelles de Likert à 5 degrés, stage « Pol' quiz »
+en lui-même, renommage des boutons de régie restent de la mise à jour du
+9 octobre).
 Sert à relire et ajuster la copie sans avoir à fouiller le code — donnez-moi
 la liste des changements (texte actuel → nouveau texte) et je les reporte
 dans les fichiers.
@@ -113,28 +115,94 @@ encore apparié]
 Badge permanent en bas d'écran (visible à tout moment, pas juste sur cet
 écran) : "Îlot {n}"
 
---- Pol' quiz (stage = polquiz) — ajouté le 9 oct. ---
-"Pol' quiz"
-"Le quiz n'est pas encore ouvert."
-"Une seule réponse par îlot. N'importe qui à votre table peut répondre —
-tout le monde avance ensemble."
-"Question {n} sur {total}"
-"C'est noté"
-"Merci. Gardez cette page ouverte : la suite s'affichera ici."
+--- Pol' quiz (stage = polquiz) — format jeu depuis le 12 oct. ---
+⚠️ Depuis le 12 oct., c'est la RÉGIE qui fait avancer les questions (bouton
+"Question suivante" / "Révéler"), plus les îlots eux-mêmes — voir la section
+régie plus bas. Chaque écran participant suit l'écran de la régie/projection
+en direct, il n'a plus son propre rythme.
 
-Les 4 questions d'exemple (window.POLQUIZ dans shared/questions.js —
-contenu volontairement intemporel, à remplacer librement, y compris le
-nombre de questions) :
-PQ1 "Quel pays est considéré comme le berceau de la démocratie ?"
-    → La Grèce antique / La Rome antique / Le Royaume-Uni / La France
-PQ2 "En France, à partir de quel âge peut-on voter ?"
-    → 16 ans / 18 ans / 21 ans / 25 ans
-PQ3 "D'où vient le mot « démocratie » ?"
-    → Du grec, « le pouvoir du peuple » / Du latin, « le pouvoir de la
-    loi » / De l'arabe, « l'assemblée » / Un mot moderne, né au XIXe siècle
-PQ4 "Pour votre îlot, qu'est-ce qui compte le plus dans un bon débat ?"
-    → Écouter / Convaincre / Être honnête / Être drôle
-    [pas de bonne réponse — sert à faire parler la table, pas à tester]
+"Pol' quiz"
+"Le quiz n'est pas encore ouvert."  [tant que polquiz_open est fermé]
+
+Consigne affichée avant la première question (participant ET projection,
+texte partagé, window.POLQUIZ_INTRO) :
+"Place au Pol' quiz ! Désignez le scribe de votre tablée : c'est lui qui
+répond, et c'est lui qui notera vos idées tout au long de la soirée. Pour
+chaque question, vous avez une minute pour vous mettre d'accord."
+
+Pendant une question : minuteur "{n} s" (30 s au départ, purement visuel —
+voir note régie), les 4 options en boutons.
+
+Pendant la révélation (après que la régie a cliqué "Révéler") : la bonne
+réponse en relief, puis l'explication et la source, texte libre (pas de
+bouton — rien n'est plus cliquable).
+
+À la fin (régie a cliqué "Terminer") :
+"Merci d'avoir joué"
+"Regardez l'écran pour le classement des tablées."  [le classement
+lui-même ne s'affiche QUE sur la projection, jamais sur les téléphones —
+décision Paul, même logique que les résultats de vote]
+
+Les 6 questions + 1 question de rechange (window.POLQUIZ dans
+shared/questions.js — "correct" marque la bonne réponse, "explanation"/
+"source" ne s'affichent qu'à la révélation) :
+
+Q1 · La relation entre élus et citoyens
+   "Quel responsable politique inspire le plus confiance aux Français ?"
+   → Le président de la République / Le député / **Le maire** / Le
+   conseiller régional
+   Explication : 60 % des Français font confiance au maire de leur
+   commune, contre 34 % à leur député et 18 % au président de la
+   République.
+   Source : Cevipof, Baromètre de la confiance politique, vague 17,
+   janvier 2026.
+
+Q2 · Le profil des responsables politiques
+   "Sur les 577 députés élus en 2022, combien sont ouvriers ?"
+   → **8** / 35 / 72 / 110
+   Explication : 8 députés sur 577 sont ouvriers, soit 1,4 %, contre 19 %
+   dans la population active.
+   Source : Institut des politiques publiques, note n°87, février 2023.
+
+Q3 · L'attractivité des fonctions politiques
+   "Combien de maires ont démissionné entre juillet 2020 et mars 2025 ?"
+   → Environ 200 / Environ 700 / **Plus de 2 000** / Plus de 6 000
+   Explication : 2 189 maires ont démissionné, soit 417 par an en
+   moyenne, contre 129 par an pendant le mandat 2009-2014.
+   Source : étude Martial Foucault (Cevipof) pour l'AMF, juin 2025.
+
+Q4 · La relation entre élus et citoyens
+   "Quel a été le taux de participation au premier tour des élections
+   législatives de 2024 ?"
+   → 47 % / 57 % / **67 %** / 77 %
+   Explication : 66,7 % des inscrits ont voté, la plus forte participation
+   à des législatives depuis 1997.
+   Source : ministère de l'Intérieur, résultats officiels, 30 juin 2024.
+
+Q5 · La transparence de la vie publique
+   "En Allemagne, 49 % jugent leurs élus plutôt corrompus. Quelle est
+   cette part en France ?"
+   → 36 % / 56 % / **76 %** / 96 %
+   Explication : 76 % des Français jugent leurs élus et dirigeants
+   politiques plutôt corrompus — 27 points de plus qu'en Allemagne.
+   Source : Cevipof, Baromètre de la confiance politique, vague 17,
+   janvier 2026.
+
+Q6 · Le rôle des partis politiques
+   "Quelle part des Français fait confiance aux partis politiques ?"
+   → **15 %** / 30 % / 45 % / 60 %
+   Explication : autant qu'aux réseaux sociaux ; 37 % font confiance aux
+   syndicats, 82 % à la science.
+   Source : Cevipof, Baromètre de la confiance politique, vague 17,
+   janvier 2026.
+
+Question de rechange (jamais jouée automatiquement — bouton dédié en régie)
+   "Quelle part des Français se dit intéressée par la politique ?"
+   → 23 % / 38 % / **53 %** / 68 %
+   Explication : 53 % se disent intéressés, alors que 78 % déclarent ne
+   pas faire confiance à la politique.
+   Source : Cevipof, Baromètre de la confiance politique, vague 17,
+   janvier 2026.
 
 --- Propositions (stage = propositions) ---
 "Vos propositions"
@@ -249,8 +317,13 @@ consigne      "Rencontre" / "Trouvez quelqu'un qui…" / (pas de sous-titre)
               [+ pendant l'appariement couleur : images d'îlots qui
               tournent toutes les 4 secondes]
 ilots         "Îlots" / "Rejoignez votre îlot" / (pas de sous-titre)
-polquiz       "Pol' quiz" / "Répondez en îlot" / "Sur votre téléphone"
-              [ajouté le 9 oct.]
+polquiz       Ce titre générique n'apparaît QUE s'il n'y a pas encore de
+              contenu de quiz à afficher — en pratique, dès que
+              stage = polquiz la projection bascule automatiquement sur
+              sa propre vue dédiée (consigne / question + minuteur /
+              révélation / classement final), reprenant les mêmes textes
+              que la section Pol' quiz ci-dessus. Décrite en détail dans
+              "Miroir du Pol' quiz" plus bas.
 propositions  "Propositions" / "À vous d'écrire" / "Deux propositions par
               îlot"
 vote          "Vote" / "Votez" / "Sur votre téléphone"
@@ -274,6 +347,18 @@ Sous chaque proposition : "{n} d'accord"  "{n} motus"  "{n} pas d'accord"
 "Ce qui ressort"  [titre du résumé IA — apparaît seulement une fois généré
 par la régie ; le texte du résumé lui-même vient du modèle, réglé par
 server/pb_hooks/prompts/vote-summary.txt, PAS par ce fichier]
+
+--- Miroir du Pol' quiz (automatique dès stage = polquiz, ajouté le 12 oct.) ---
+"Pol' quiz"  [kicker fixe]
+Avant la première question : la consigne (texte identique à la section
+Pol' quiz ci-dessus, "Place au Pol' quiz ! …").
+Pendant une question : la catégorie ("Question {n} · …"), la question, le
+minuteur "{n} s", les 4 options (lecture seule, pas cliquables).
+Pendant la révélation : la bonne réponse mise en valeur parmi les 4
+options, l'explication, la source.
+"Classement des tablées"  [titre de l'écran final]
+"Îlot {n}"  "{n} bonne(s) réponse(s)"  [une ligne par îlot, triées du
+meilleur score au moins bon]
 
 
 ================================================================================
@@ -309,6 +394,22 @@ Ce qui est permis — 6 bascules : "Mission d'entrée" / "Appariement par
 Projection — boutons de vue : idle / entry / vote / programme
   "← page précédente" / "page suivante →" / "retour au début"
   "Cinq énoncés par page, du plus consensuel au plus clivant."
+
+Pol' quiz — fieldset ajouté le 12 oct., même onglet (c'est un contrôle de
+  tempo en direct, comme Projection juste au-dessus) :
+  "C'est ce bouton qui fait avancer la salle, pas les îlots : tant que
+  vous ne cliquez pas, tout le monde reste sur la même question."
+  État courant (texte généré) : "Pas commencé — les participants voient la
+  consigne." / "En cours — question {n}/6 : « {texte} »" / "Réponse
+  révélée — question {n}/6 : « {texte} »" / "Terminé — classement
+  calculé, visible sur la projection."
+  "{n} / {n} îlot(s) ont répondu à cette question."  [compteur live,
+  affiché seulement pendant une question ou sa révélation]
+  Boutons : "Démarrer" (devient "Question suivante" une fois commencé) /
+  "Révéler la réponse" (grisé hors d'une question en cours) / "Question de
+  rechange" / "Terminer — calculer le classement" / "Recommencer"
+  Classement (aperçu régie, calculé en même temps que celui envoyé à la
+  projection) : "Îlot {n}"  "{n} bonne(s) réponse(s)"
 
 Clôture — "Combien de questionnaires sont rentrés. Sert à décider quand
   fermer, pas à lire les réponses : le texte libre se lit après la

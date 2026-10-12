@@ -111,6 +111,30 @@
     #prev[hidden] { display: none; }
     .saved { font-size: 14px; }
 
+    /* ---- Pol' quiz ---- */
+    .polquiz-countdown {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: 32px;
+      color: var(--accent);
+      margin: 0 0 18px;
+    }
+    #polquizOptions button[aria-pressed="true"] { border-width: 2px; }
+    .polquiz-reveal-opt {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+    .polquiz-reveal-opt.correct {
+      border-color: var(--ok);
+      border-width: 2px;
+      background: color-mix(in srgb, var(--ok) 12%, transparent);
+      font-weight: 600;
+    }
+    .polquiz-explanation { margin: 18px 0 6px; }
+    .polquiz-source { font-size: 13px; }
+
     /* ---- îlot ---- */
     [data-stage="ilots"] { text-align: center; }
     .island-badge {
@@ -457,21 +481,31 @@
       <p class="closed" data-when-closed="polquiz_open">Le quiz n'est pas encore ouvert.</p>
 
       <div id="polquizWrap" hidden>
-        <p class="muted">
-          Une seule réponse par îlot. N'importe qui à votre table peut
-          répondre — tout le monde avance ensemble.
-        </p>
+        <!-- Avant que la régie ne lance la première question. -->
+        <div id="polquizIntro">
+          <p id="polquizIntroText"></p>
+        </div>
 
-        <div id="polquizQuestion">
-          <div class="progress"><span id="polquizBar"></span></div>
-          <p class="step muted" id="polquizStep"></p>
+        <!-- Question en cours : la régie décide laquelle, pas l'îlot. -->
+        <div id="polquizQuestion" hidden>
+          <p class="q-intro muted" id="polquizCategory"></p>
           <h1 id="polquizText"></h1>
+          <p class="polquiz-countdown" id="polquizCountdown"></p>
           <div class="options" id="polquizOptions"></div>
         </div>
 
+        <!-- Révélation : la régie l'a déclenchée, plus interactif. -->
+        <div id="polquizReveal" hidden>
+          <p class="q-intro muted" id="polquizRevealCategory"></p>
+          <h1 id="polquizRevealText"></h1>
+          <div class="options" id="polquizRevealOptions"></div>
+          <p class="polquiz-explanation" id="polquizExplanation"></p>
+          <p class="polquiz-source muted" id="polquizSource"></p>
+        </div>
+
         <div id="polquizDone" hidden>
-          <h1>C'est noté</h1>
-          <p class="muted">Merci. Gardez cette page ouverte&nbsp;: la suite s'affichera ici.</p>
+          <h1>Merci d’avoir joué</h1>
+          <p class="muted">Regardez l’écran pour le classement des tablées.</p>
         </div>
       </div>
     </section>
@@ -581,6 +615,11 @@
     var matchingCode = document.getElementById('matchingCode');
     var matchingHint = document.getElementById('matchingHint');
 
+    // Dernière session connue — le Pol' quiz (plus bas) s'en sert pour se
+    // redessiner dès que sa propre fiche îlot change, sans attendre le
+    // prochain `App.onSession`.
+    var lastSession = null;
+
     // Même règle que shortName() dans regie.html : les 4 derniers
     // caractères du username généré, pour que régie et participant lisent
     // exactement la même chaîne sans conversion mentale.
@@ -625,6 +664,7 @@
     });
 
     App.onSession(function (s) {
+      lastSession = s;
       stageName.textContent = s.stage;
 
       panels.forEach(function (p) {
@@ -667,6 +707,10 @@
             }
             if (s.polquiz_open && myIsland > 0) {
               polquizWrap.hidden = false;
+              // Rendu immédiat avec ce qu'on a déjà (la question/phase a pu
+              // changer même si notre fiche îlot, elle, n'a pas bougé) ; la
+              // fiche à jour arrive juste après et redessine si besoin.
+              renderPolquiz(s);
               loadPolquiz().then(watchPolquiz);
             }
             updateMatching(s, me);
@@ -1052,48 +1096,114 @@
     }
 
     /* ---- Pol' quiz ---------------------------------------------------------
-     * Même principe que les propositions, mais une seule réponse PAR ÎLOT au
-     * lieu d'une par personne : un enregistrement `polquiz_answers` par îlot,
-     * avec un champ json `answers` indexé par clé de question (questions.js,
-     * annexe C). Quiconque répond écrit pour toute la table ; les autres
-     * téléphones, abonnés au même enregistrement, avancent avec lui. */
+     * Réponse PAR ÎLOT (un enregistrement `polquiz_answers`, champ json
+     * `answers` indexé par clé de question — questions.js, annexe C), comme
+     * avant. Mais depuis le 12 oct. c'est la RÉGIE qui mène le tempo : quelle
+     * question est à l'écran et dans quelle phase ('question' | 'reveal')
+     * vit dans `session.polquiz_question`/`polquiz_phase`, pas dans la
+     * progression de l'îlot. L'îlot répond à la question courante, pas à
+     * « la première sans réponse » — s'il change d'avis avant la révélation,
+     * retaper une autre option réécrit la même clé (verrouillé seulement une
+     * fois `polquiz_phase === 'reveal'`, côté client — confiance comparable
+     * au reste de l'app participant, pas un verrou serveur). */
     var polquizWrap = document.getElementById('polquizWrap');
+    var polquizIntroEl = document.getElementById('polquizIntro');
+    var polquizIntroTextEl = document.getElementById('polquizIntroText');
     var polquizQuestionEl = document.getElementById('polquizQuestion');
-    var polquizDoneEl = document.getElementById('polquizDone');
+    var polquizCategoryEl = document.getElementById('polquizCategory');
     var polquizText = document.getElementById('polquizText');
+    var polquizCountdownEl = document.getElementById('polquizCountdown');
     var polquizOptionsEl = document.getElementById('polquizOptions');
-    var polquizStepEl = document.getElementById('polquizStep');
-    var polquizBarEl = document.getElementById('polquizBar');
+    var polquizRevealEl = document.getElementById('polquizReveal');
+    var polquizRevealCategoryEl = document.getElementById('polquizRevealCategory');
+    var polquizRevealTextEl = document.getElementById('polquizRevealText');
+    var polquizRevealOptionsEl = document.getElementById('polquizRevealOptions');
+    var polquizExplanationEl = document.getElementById('polquizExplanation');
+    var polquizSourceEl = document.getElementById('polquizSource');
+    var polquizDoneEl = document.getElementById('polquizDone');
 
-    var polquizRecord = null;   // enregistrement de mon îlot, ou null
-    var polquizSaving = false;  // anti-double-tap pendant l'écriture réseau
+    var polquizRecord = null;      // enregistrement de mon îlot, ou null
+    var polquizSaving = false;     // anti-double-tap pendant l'écriture réseau
+    var polquizCountdownTimer = null;
 
-    function renderPolquiz() {
-      var given = (polquizRecord && polquizRecord.answers) || {};
-      var i = 0;
-      for (; i < POLQUIZ.length; i++) {
-        if (!given[POLQUIZ[i].key]) break;
+    function polquizByKey(key) {
+      for (var i = 0; i < POLQUIZ.length; i++) {
+        if (POLQUIZ[i].key === key) return POLQUIZ[i];
       }
+      return null;
+    }
 
-      if (i >= POLQUIZ.length) {
-        polquizQuestionEl.hidden = true;
+    function stopPolquizCountdown() {
+      if (polquizCountdownTimer) { clearInterval(polquizCountdownTimer); polquizCountdownTimer = null; }
+    }
+
+    // Minuteur purement visuel (spec §2.6) : calé sur `polquiz_started_at`,
+    // le même pour tout le monde, mais rien ne verrouille les réponses à 0 —
+    // seule la régie, en passant en phase `reveal`, ferme vraiment la
+    // question.
+    function startPolquizCountdown(startedAt) {
+      stopPolquizCountdown();
+      function tick() {
+        var elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        var left = Math.max(0, window.POLQUIZ_COUNTDOWN - elapsed);
+        polquizCountdownEl.textContent = left + ' s';
+      }
+      tick();
+      polquizCountdownTimer = setInterval(tick, 1000);
+    }
+
+    function renderPolquiz(s) {
+      polquizIntroEl.hidden = true;
+      polquizQuestionEl.hidden = true;
+      polquizRevealEl.hidden = true;
+      polquizDoneEl.hidden = true;
+      stopPolquizCountdown();
+
+      var phase = s.polquiz_phase;
+      var q = polquizByKey(s.polquiz_question);
+
+      if (phase === 'done') {
         polquizDoneEl.hidden = false;
         return;
       }
-      polquizQuestionEl.hidden = false;
-      polquizDoneEl.hidden = true;
 
-      var q = POLQUIZ[i];
-      polquizStepEl.textContent = 'Question ' + (i + 1) + ' sur ' + POLQUIZ.length;
-      polquizBarEl.style.width = Math.round((i / POLQUIZ.length) * 100) + '%';
+      if (!q || phase === 'idle' || !phase) {
+        polquizIntroEl.hidden = false;
+        polquizIntroTextEl.textContent = window.POLQUIZ_INTRO;
+        return;
+      }
+
+      var given = (polquizRecord && polquizRecord.answers) || {};
+      var myAnswer = given[q.key];
+
+      if (phase === 'reveal') {
+        polquizRevealEl.hidden = false;
+        polquizRevealCategoryEl.textContent = q.category || '';
+        polquizRevealTextEl.textContent = q.text;
+        polquizRevealOptionsEl.textContent = '';
+        q.options.forEach(function (opt) {
+          var row = document.createElement('div');
+          row.className = 'polquiz-reveal-opt' + (opt.key === q.correct ? ' correct' : '');
+          row.textContent = opt.label;
+          polquizRevealOptionsEl.appendChild(row);
+        });
+        polquizExplanationEl.textContent = q.explanation || '';
+        polquizSourceEl.textContent = q.source || '';
+        return;
+      }
+
+      // phase === 'question'
+      polquizQuestionEl.hidden = false;
+      polquizCategoryEl.textContent = q.category || '';
       polquizText.textContent = q.text;
+      if (s.polquiz_started_at) startPolquizCountdown(s.polquiz_started_at);
 
       polquizOptionsEl.textContent = '';
       q.options.forEach(function (opt) {
         var b = document.createElement('button');
         b.type = 'button';
         b.textContent = opt.label;
-        b.setAttribute('aria-pressed', 'false');
+        b.setAttribute('aria-pressed', String(myAnswer === opt.key));
         b.addEventListener('click', function () { answerPolquiz(q, opt); });
         polquizOptionsEl.appendChild(b);
       });
@@ -1112,7 +1222,7 @@
 
       op.then(function (rec) {
         polquizRecord = rec;
-        renderPolquiz();
+        if (lastSession) renderPolquiz(lastSession);
       }).catch(function (e) {
         console.warn('pol’ quiz non enregistré — la saisie est peut-être fermée', e);
       }).finally(function () { polquizSaving = false; });
@@ -1124,11 +1234,11 @@
         'island = ' + myIsland, { requestKey: null }
       ).then(function (rec) {
         polquizRecord = rec;
-        renderPolquiz();
+        if (lastSession) renderPolquiz(lastSession);
       }).catch(function (e) {
         if (e && e.status === 404) {
           polquizRecord = null;
-          renderPolquiz();
+          if (lastSession) renderPolquiz(lastSession);
           return;
         }
         console.warn('pol’ quiz illisible', e);
