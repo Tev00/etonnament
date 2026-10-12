@@ -43,8 +43,8 @@
     .q-intro { font-size: 15px; margin-bottom: 4px; }
     #qtext { font-size: clamp(22px, 5vw, 30px); line-height: 1.25; margin-bottom: 24px; }
 
-    /* ---- question à curseur (0-100, thermomètre) ---- */
-    #scaleWrap input[type="range"] {
+    /* ---- question à curseur (thermomètre, NPS…) — mission ET clôture ---- */
+    .scale-slider {
       width: 100%;
       margin: 12px 0 10px;
       accent-color: var(--accent);
@@ -69,6 +69,11 @@
     .scale-labels span:nth-child(2) { text-align: center; flex: 1.4; }
     .scale-labels span:last-child { text-align: right; }
     #scaleNext { width: 100%; padding: 14px; font-size: 16px; }
+    /* Clôture : pas de bouton « Suivant », le curseur sauvegarde en direct,
+       comme les autres champs de ce formulaire (toutes les questions sont
+       visibles en même temps, pas une par écran). */
+    .fq .scale-value { font-size: 36px; margin-bottom: 6px; }
+    .fq .scale-labels { margin-bottom: 4px; }
 
     .options { display: grid; gap: 10px; }
     /* Cibles tactiles généreuses : on répond debout, en tenant son manteau. */
@@ -413,7 +418,7 @@
         <h1 id="qtext"></h1>
         <div class="options" id="options"></div>
         <div id="scaleWrap" hidden>
-          <input type="range" id="scaleInput" min="0" max="100" step="1" value="50" />
+          <input type="range" id="scaleInput" class="scale-slider" min="0" max="100" step="1" value="50" />
           <div class="scale-value" id="scaleValue">50</div>
           <div class="scale-labels">
             <span id="scaleLabelMin"></span>
@@ -706,6 +711,15 @@
       return QUESTIONS.length;
     }
 
+    /* Milieu de l'échelle d'une question à curseur — valeur de départ avant
+     * toute interaction. Partagé entre la mission (0-100) et la clôture
+     * (0-100 et 0-10 selon la question, spec §2.7bis). */
+    function defaultScaleValue(q) {
+      var min = q.scaleMin !== undefined ? q.scaleMin : 0;
+      var max = q.scaleMax !== undefined ? q.scaleMax : 100;
+      return Math.round((min + max) / 2);
+    }
+
     /* Un bouton Likert : chiffre (position dans la liste) en avant, libellé
      * court dessous. Partagé entre la mission d'entrée et la clôture —
      * toutes deux en 5 degrés depuis le 9 oct. */
@@ -748,10 +762,12 @@
         optionsEl.hidden = true;
         optionsEl.textContent = '';
         scaleWrapEl.hidden = false;
+        scaleInputEl.min = q.scaleMin !== undefined ? q.scaleMin : 0;
+        scaleInputEl.max = q.scaleMax !== undefined ? q.scaleMax : 100;
         scaleLabelMinEl.textContent = q.scaleLabels.min;
         scaleLabelMidEl.textContent = q.scaleLabels.mid;
         scaleLabelMaxEl.textContent = q.scaleLabels.max;
-        var current = answers[q.key] !== undefined ? answers[q.key] : '50';
+        var current = answers[q.key] !== undefined ? answers[q.key] : String(defaultScaleValue(q));
         scaleInputEl.value = current;
         scaleValueEl.textContent = current;
       } else {
@@ -1304,6 +1320,41 @@
           });
           box.appendChild(ta);
           box.appendChild(count);
+        } else if (q.type === 'scale') {
+          // Pas de bouton « Suivant » ici : toutes les questions de clôture
+          // sont visibles ensemble (pas une par écran comme la mission), le
+          // curseur sauvegarde donc en direct comme un champ texte.
+          var slider = document.createElement('input');
+          slider.type = 'range';
+          slider.className = 'scale-slider';
+          slider.min = q.scaleMin !== undefined ? q.scaleMin : 0;
+          slider.max = q.scaleMax !== undefined ? q.scaleMax : 100;
+          slider.step = 1;
+          slider.value = defaultScaleValue(q);
+
+          var valueEl = document.createElement('div');
+          valueEl.className = 'scale-value';
+          valueEl.textContent = slider.value;
+
+          var labelsEl = document.createElement('div');
+          labelsEl.className = 'scale-labels';
+          var lMin = document.createElement('span');
+          lMin.textContent = q.scaleLabels.min;
+          var lMid = document.createElement('span');
+          lMid.textContent = q.scaleLabels.mid;
+          var lMax = document.createElement('span');
+          lMax.textContent = q.scaleLabels.max;
+          labelsEl.appendChild(lMin); labelsEl.appendChild(lMid); labelsEl.appendChild(lMax);
+
+          slider.addEventListener('input', function () {
+            valueEl.textContent = slider.value;
+            fbAnswers[q.key] = slider.value;
+            fbSave(false);
+          });
+
+          box.appendChild(valueEl);
+          box.appendChild(slider);
+          box.appendChild(labelsEl);
         } else {
           var opts = document.createElement('div');
           opts.className = 'fq-options likert';

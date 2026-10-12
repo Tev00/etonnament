@@ -135,10 +135,16 @@ re-présenter la carte, mais il est exclu des agrégats.
 | Champ | Type | Notes |
 |---|---|---|
 | `participant` | relation → participants | |
-| `answers` | json | 5 réponses, fermées + texte libre court |
+| `answers` | json | 7 réponses (contenu du 12 oct., `shared/questions.js` `FEEDBACK`) : 2 curseurs 0-100, 1 curseur 0-10 (NPS), 2 à choix, 2 texte libre |
 
 Un seul enregistrement par participant (json plutôt que lignes : pas d'agrégat
 temps réel nécessaire, et le texte libre se prête mal aux lignes).
+
+> F1/F2/F3 reposent mot pour mot les trois questions de la Partie 2 de la
+> mission d'entrée (`p2_a`/`p2_b`/`p2_c`) — une vraie mesure avant/après sur
+> les trois, pas seulement sur une comme l'ancien contenu (événement 1). Les
+> garder synchronisées si l'une des deux copies est éditée (`questions.js`
+> porte la même note des deux côtés).
 
 ### 1.7 `session` — enregistrement unique, la machine à états
 
@@ -440,7 +446,7 @@ ne change pas, seul l'intitulé lu par le facilitateur change :
 | `propositions` | formulaire (membres de l'îlot) | `propositions_open` |
 | `vote` | pile de cartes | `vote_open` |
 | `resultats` | « regardez l'écran » | — |
-| `cloture` (« Questionnaire \| Fin ») | 6 questions de feedback, dont 3 à 5 degrés (Likert) | `feedback_open` |
+| `cloture` (« Questionnaire \| Fin ») | 7 questions de feedback : 2 curseurs 0-100, 1 curseur 0-10 (NPS), 2 à 5 degrés (Likert), 2 texte libre | `feedback_open` |
 
 Déroulé nominal, chaque transition déclenchée **manuellement** par la régie :
 

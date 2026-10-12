@@ -1,8 +1,9 @@
 ÉTONNAMMENT D'ACCORD — INVENTAIRE DES TEXTES DE L'INTERFACE
 Généré le 10 septembre 2026, mis à jour le 12 octobre 2026 (contenu de la
-mission d'entrée entièrement remplacé pour le second événement — voir plus
-bas ; échelles de Likert à 5 degrés, stage « Pol' quiz », renommage des
-boutons de régie restent de la mise à jour du 9 octobre).
+mission d'entrée ET du questionnaire de clôture entièrement remplacés pour
+le second événement — voir plus bas ; édition régie des propositions
+ajoutée le même jour ; échelles de Likert à 5 degrés, stage « Pol' quiz »,
+renommage des boutons de régie restent de la mise à jour du 9 octobre).
 Sert à relire et ajuster la copie sans avoir à fouiller le code — donnez-moi
 la liste des changements (texte actuel → nouveau texte) et je les reporte
 dans les fichiers.
@@ -191,32 +192,44 @@ Trois cartes tout en bas de cet écran :
   "Sur les réseaux" → ouvre instagram.com/nuances_org  [icône
     instagram.png]
 
---- Les 6 questions du questionnaire de clôture ---
-⚠️ Depuis le 9 oct., F1/F2/F5 (les questions à choix) sont aussi à 5 degrés
-et affichées en ligne, comme la mission d'entrée. F3/F4/F6 restent en texte
-libre, inchangées.
+--- Les 7 questions du questionnaire de clôture (remplacées le 12 oct. pour
+    le second événement — l'ancien contenu F1-F6 a été abandonné) ---
+⚠️ F1, F2 et F3 reposent MOT POUR MOT les trois questions de la Partie 2 de
+la mission d'entrée (P2.a, P2.b, P2.c) — c'est une vraie mesure avant/après,
+la seule du questionnaire. Si vous éditez l'une de ces trois ici, éditez sa
+jumelle dans la mission d'entrée pareil, sinon la comparaison ne veut plus
+rien dire.
 
-F1 "Ce soir, avez-vous entendu un point de vue qui vous a surpris ?"
-   → Pas du tout / Un peu / Moyennement / Beaucoup / Énormément
+F1 (curseur 0-100, identique à P2.a) "Sur une échelle de 0 à 100, quel
+   sentiment éprouvez-vous envers les personnes qui font partie d'un camp
+   politique auquel vous vous opposez ?"
+   Repères : "0 — très froid, défavorable" / "50 — ni chaleureux ni froid"
+   / "100 — très chaleureux, favorable"
 
-F2 "Ce soir, avez-vous pu dire ce que vous pensiez, sans vous retenir ?"
-   → Jamais / Rarement / Parfois / Souvent / Très souvent
-   ⚠️ Miroir de Q3 (mission d'entrée) — seule vraie mesure avant/après du
-   questionnaire. Les deux échelles sont désormais identiques mot pour mot ;
-   gardez-les alignées si vous éditez l'une des deux.
+F2 (curseur 0-100, identique à P2.b) "Le thermomètre inversé — selon vous,
+   quel sentiment les personnes de ce camp éprouvent-elles envers les
+   personnes comme vous ?"
+   Mêmes repères que F1
 
-F3 "Qu'est-ce qui a le mieux marché, selon vous ?"  [texte libre — indice
-   affiché dans le champ vide : "Une ligne suffit."]
+F3 (choix, identique à P2.c) "L'espoir de coopération — je pense qu'il est
+   possible de travailler avec les gens du camp adverse pour trouver les
+   meilleures solutions à nos plus grands problèmes."
+   → Pas du tout d'accord / Plutôt pas d'accord / Ni l'un ni l'autre /
+   Plutôt d'accord / Tout à fait d'accord
 
-F4 "Qu'est-ce qui a coincé ?"  [texte libre — indice : "Même une petite
-   chose."]
+F4 (choix, nouveau — pas de miroir) "Ce soir, j'ai soutenu au moins une
+   proposition que j'aurais rejetée en arrivant."
+   → Oui / Non
 
-F5 "Seriez-vous prêt·e à revenir, ou à amener quelqu'un ?"
-   → Oui, avec quelqu'un / Oui, seul·e / Probablement / Peut-être / Non
+F5 (curseur 0-10, PAS 0-100 — score de recommandation/NPS) "Sur une échelle
+   de 0 à 10, recommanderiez-vous cette soirée à un proche ?"
+   Repères : "0 — pas probable du tout" / "5" / "10 — extrêmement probable"
 
-F6 "Qu'est-ce que vous diriez à quelqu'un pour l'inviter au prochain
-   débat ?"  [texte libre — indice : "Vos mots à vous — ce sont les
-   meilleurs pour inviter."]
+F6 (texte libre) "Qu'avez-vous le plus apprécié ?"  [indice affiché dans le
+   champ vide : "Une ligne suffit."]
+
+F7 (texte libre) "Qu'est-ce qui pourrait mieux faire fonctionner ?"
+   [indice : "Même une petite chose."]
 
 
 ================================================================================

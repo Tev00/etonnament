@@ -123,92 +123,79 @@ window.CONSIGNE_QUESTIONS = ['p1_1', 'p2_c'];
 /* ---------------------------------------------------------------------------
  * Annexe B : questionnaire de clôture (« Questionnaire | Fin »).
  *
- * Six questions : les quatre du déroulé (Paul, 8 sept.), précédées de deux
- * questions fermées qui rejoignent la mission d'entrée.
+ * Contenu entièrement remplacé le 12 oct. pour le second événement (comme
+ * `QUESTIONS` plus haut — l'ancien F1-F6 est abandonné).
  *
- * Pourquoi ces deux-là d'abord. Elles se répondent d'un doigt : commencer par
- * un tap plutôt que par un champ de texte, c'est la différence entre un
- * questionnaire commencé et un questionnaire regardé. Les trois champs libres
- * viennent ensuite, quand la personne est déjà dedans.
- *
- * ⚠️ Une seule des deux est une VRAIE mesure avant/après. F2 reprend Q3 presque
- * mot pour mot : on peut comparer les deux réponses d'une même personne et dire
- * si la soirée a changé quelque chose. F1 porte sur la surprise, que la mission
- * d'entrée ne mesure pas — c'est une donnée neuve, pas un second point sur une
- * courbe. Ne pas présenter les deux comme un avant/après dans le bilan.
+ * ⚠️ F1/F2/F3 sont les trois questions de la Partie 2 de la mission d'entrée
+ * (p2_a/p2_b/p2_c, thermomètres + espoir de coopération), reposées ICI mot
+ * pour mot, échelle identique — c'est une VRAIE mesure avant/après sur les
+ * trois, pas juste sur F3 comme l'ancien F2↔Q3. Si vous éditez l'une des
+ * trois ici, éditez son double dans `QUESTIONS` pareil, ou la comparaison ne
+ * veut plus rien dire. F4-F7 sont neufs, pas de mesure avant/après dessus.
  *
  * Rien n'est en base : `feedback.answers` est un json indexé par ces clés.
- *
- * Échelle de Likert à 5 degrés (ajouté le 9 oct., comme sur la mission
- * d'entrée) : F1, F2 et F5 passent de 3/3/4 à 5 options chacune, affichées en
- * ligne (`.options.likert`). F2 reprend l'échelle de Q3 mot pour mot
- * (Jamais…Très souvent) : c'est ce qui rend la comparaison avant/après valide.
- * F3/F4/F6 restent en texte libre, inchangées.
+ * Trois types de question ici : `'scale'` (curseur, comme la mission —
+ * F1/F2 sur 0-100, F5 sur 0-10, chacune avec ses propres bornes), `'choice'`
+ * (boutons, en ligne dès que l'échelle fait 5 — F3/F4), `'text'` (libre,
+ * F6/F7).
  */
 window.FEEDBACK = [
   {
-    // Donnée neuve : la mission d'entrée ne demande rien sur la surprise.
+    // Miroir mot pour mot de p2_a (QUESTIONS, Partie 2).
     key: 'f1',
-    type: 'choice',
-    text: 'Ce soir, avez-vous entendu un point de vue qui vous a surpris ?',
-    options: [
-      { key: 'f1_c1', label: 'Pas du tout' },
-      { key: 'f1_c2', label: 'Un peu' },
-      { key: 'f1_c3', label: 'Moyennement' },
-      { key: 'f1_c4', label: 'Beaucoup' },
-      { key: 'f1_c5', label: 'Énormément' }
-    ]
+    type: 'scale',
+    text: 'Sur une échelle de 0 à 100, quel sentiment éprouvez-vous envers les personnes qui font partie d’un camp politique auquel vous vous opposez ?',
+    scaleMin: 0,
+    scaleMax: 100,
+    scaleLabels: { min: '0 — très froid, défavorable', mid: '50 — ni chaleureux ni froid', max: '100 — très chaleureux, favorable' }
   },
   {
-    /* Miroir de Q3 — même échelle, mot pour mot, pour que la comparaison
-     * avant/après sur une même personne reste valide. */
+    // Miroir mot pour mot de p2_b.
     key: 'f2',
-    type: 'choice',
-    text: 'Ce soir, avez-vous pu dire ce que vous pensiez, sans vous retenir ?',
-    options: [
-      { key: 'f2_c1', label: 'Jamais' },
-      { key: 'f2_c2', label: 'Rarement' },
-      { key: 'f2_c3', label: 'Parfois' },
-      { key: 'f2_c4', label: 'Souvent' },
-      { key: 'f2_c5', label: 'Très souvent' }
-    ]
+    type: 'scale',
+    text: 'Le thermomètre inversé — selon vous, quel sentiment les personnes de ce camp éprouvent-elles envers les personnes comme vous ?',
+    scaleMin: 0,
+    scaleMax: 100,
+    scaleLabels: { min: '0 — très froid, défavorable', mid: '50 — ni chaleureux ni froid', max: '100 — très chaleureux, favorable' }
   },
   {
+    // Miroir mot pour mot de p2_c, même échelle d'accord à 5 degrés.
     key: 'f3',
-    type: 'text',
-    text: 'Qu’est-ce qui a le mieux marché, selon vous ?',
-    placeholder: 'Une ligne suffit.',
-    max: 400
+    type: 'choice',
+    text: 'L’espoir de coopération — je pense qu’il est possible de travailler avec les gens du camp adverse pour trouver les meilleures solutions à nos plus grands problèmes.',
+    options: agreeOptions('f3')
   },
   {
     key: 'f4',
-    type: 'text',
-    text: 'Qu’est-ce qui a coincé ?',
-    placeholder: 'Même une petite chose.',
-    max: 400
+    type: 'choice',
+    text: 'Ce soir, j’ai soutenu au moins une proposition que j’aurais rejetée en arrivant.',
+    options: [
+      { key: 'f4_c1', label: 'Oui' },
+      { key: 'f4_c2', label: 'Non' }
+    ]
   },
   {
-    /* Deux questions en une dans le déroulé — « revenir » ET « amener
-     * quelqu'un ». En choix fermé plutôt qu'en texte libre : c'est le
-     * chiffre qu'on citera pour décider s'il y a une prochaine soirée. Les
-     * options gardent les deux idées distinctes. */
+    // Score de recommandation (NPS) — échelle 0-10, pas 0-100.
     key: 'f5',
-    type: 'choice',
-    text: 'Seriez-vous prêt·e à revenir, ou à amener quelqu’un ?',
-    options: [
-      { key: 'f5_c1', label: 'Oui, avec quelqu’un' },
-      { key: 'f5_c2', label: 'Oui, seul·e' },
-      { key: 'f5_c3', label: 'Probablement' },
-      { key: 'f5_c4', label: 'Peut-être' },
-      { key: 'f5_c5', label: 'Non' }
-    ]
+    type: 'scale',
+    text: 'Sur une échelle de 0 à 10, recommanderiez-vous cette soirée à un proche ?',
+    scaleMin: 0,
+    scaleMax: 10,
+    scaleLabels: { min: '0 — pas probable du tout', mid: '5', max: '10 — extrêmement probable' }
   },
   {
     key: 'f6',
     type: 'text',
-    text: 'Qu’est-ce que vous diriez à quelqu’un pour l’inviter au prochain débat ?',
-    placeholder: 'Vos mots à vous — ce sont les meilleurs pour inviter.',
-    max: 500
+    text: 'Qu’avez-vous le plus apprécié ?',
+    placeholder: 'Une ligne suffit.',
+    max: 400
+  },
+  {
+    key: 'f7',
+    type: 'text',
+    text: 'Qu’est-ce qui pourrait mieux faire fonctionner ?',
+    placeholder: 'Même une petite chose.',
+    max: 400
   }
 ];
 
