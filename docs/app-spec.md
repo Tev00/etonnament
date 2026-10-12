@@ -101,11 +101,22 @@ régie fait la copie et coupe le lien.
 | Champ | Type | Notes |
 |---|---|---|
 | `island` | number | visible régie uniquement |
-| `problem` | text | problème visé |
-| `description` | text (max 300) | 2 phrases, limite imposée côté UI *et* base |
-| `effect` | text | effet attendu |
+| `problem` | text | problème visé — jamais versionné, régie ne le modifie pas |
+| `description` | text (max 300 côté UI ; pas de limite en base) | 2 phrases, écrites par l'îlot — version *initiale*, jamais réécrite par la régie |
+| `effect` | text | effet attendu, version *initiale* — idem |
+| `description_final` | text | ajouté le 12 oct. — réécriture régie de `description`, vide tant que `modified` est faux |
+| `effect_final` | text | ajouté le 12 oct. — idem pour `effect` |
+| `modified` | bool | ajouté le 12 oct., défaut `false` — bascule à `true` dès que la régie enregistre une édition (§2.7) |
 | `status` | select | `draft` \| `validated` \| `rejected` |
 | `statement` | relation → statements | rempli à l'injection |
+
+> `description`/`effect` ne sont **jamais** écrasés par une édition régie —
+> c'est tout le sens de la séparation initiale/finale. L'îlot continue de ne
+> voir et modifier que `description`/`effect` (son propre formulaire,
+> `app/index.html`, est inchangé par cet ajout). Le texte réellement copié
+> dans `statements` — donc ce sur quoi la salle vote — est la version
+> *effective* : `description_final` si `modified = true`, sinon
+> `description` (voir `effectiveText()` dans `regie.html`).
 
 ### 1.5 `votes`
 
@@ -355,14 +366,49 @@ update    : idem create, ou FACILITATOR
 delete    : FACILITATOR
 ```
 
-⚠️ **Collection à créer à la main dans l'admin PocketBase** (comme
-`pair_color`/`pair_code` et `matching_open`/`matching_view` l'ont été le 10
-sept) : ce dépôt n'a pas de migration automatisée, et créer une collection
-depuis un hook reviendrait à donner à du code applicatif un accès qu'on
-retire explicitement au participant partout ailleurs (§4, point 1). Champs à
-ajouter avant de déployer ce code : `session.polquiz_open` (bool, défaut
-`false`), puis la collection `polquiz_answers` avec `island` (number,
-requis) et `answers` (json) et les quatre règles ci-dessus.
+✅ **Fait le 12 oct.** : `session.polquiz_open` (bool, défaut `false`) et la
+collection `polquiz_answers` (`island` number requis, `answers` json,
+`created`/`updated` autodate, les quatre règles ci-dessus) existent sur
+l'instance live — créés via l'API superuser (`_superusers/auth-with-password`
+puis `PATCH`/`POST /api/collections`), pas par ce dépôt (toujours pas de
+migration automatisée ; créer une collection depuis un hook applicatif
+reviendrait à lui donner un accès qu'on retire explicitement au participant
+partout ailleurs, §4 point 1). Vérifié : liste anonyme sur `polquiz_answers`
+renvoie `0 items`, pas une fuite.
+
+### 2.7 Édition régie des propositions (ajouté le 12 oct.)
+
+La régie peut réécrire la description et l'effet d'une proposition sans
+toucher à ce que l'îlot a écrit — pour corriger une formulation ambiguë,
+couper une proposition trop longue, ou neutraliser une tournure avant le
+vote, sans perdre la trace du texte d'origine.
+
+1. Bouton « Modifier » sur chaque proposition (`regie.html`, fieldset
+   Propositions) — ouvre un panneau avec deux champs texte, pré-remplis par
+   la version effective actuelle (`description_final`/`effect_final` si déjà
+   modifiée, sinon `description`/`effect`).
+2. « Enregistrer la modification » écrit dans `description_final`/
+   `effect_final` et passe `modified` à `true` — `description`/`effect`
+   (l'îlot) ne sont jamais touchés par ce chemin.
+3. **Si la proposition est déjà validée** (`statement` pointe vers un
+   énoncé existant), l'enregistrement met aussi à jour `statements.text` en
+   place, dans la même opération. Nécessaire : une fois `status =
+   'validated'`, le bouton « Valider → énoncé » n'est plus affiché, donc
+   rien d'autre ne resynchroniserait le texte voté avec l'édition.
+4. « Revenir à la version initiale » repasse `modified` à `false` (et
+   resynchronise `statements.text` sur `description` si déjà validée) sans
+   effacer `description_final`/`effect_final` — l'édition reste en base,
+   simplement ignorée, au cas où la régie voudrait la rétablir.
+5. `validate()` (le bouton « Valider → énoncé ») envoie désormais la version
+   *effective* (`effectiveText(p)`, §1.4) dans `statements.text`, plus la
+   même resynchronisation défensive que le point 3 si un `statement` existe
+   déjà (reclique après une édition entre-temps).
+
+Le roster régie affiche un tag « modifié » (accent) à côté du statut, et un
+encart « Version finale (régie), envoyée au vote » sous le texte d'origine
+quand `modified` est vrai — toujours visible à côté de la version initiale,
+jamais à sa place : la régie doit pouvoir comparer les deux d'un coup d'œil,
+pas deviner ce qui a changé.
 
 ---
 

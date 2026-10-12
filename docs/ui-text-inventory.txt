@@ -350,12 +350,28 @@ Propositions —
   C'est cette copie qui coupe le lien : à partir de là, plus rien ne dit
   d'où vient la proposition."
   "Rafraîchir"
-  "{n} en attente, {n} retenue(s), {n} écartée(s)"
+  "{n} en attente, {n} retenue(s), {n} écartée(s), {n} modifiée(s) par la
+  régie"  [ajouté le 12 oct.]
   Par proposition : "Îlot {n}", étiquette de statut (⚠️ affiche
   actuellement le mot brut "draft" / "validated" / "rejected", pas encore
   traduit en français — dites-moi si vous voulez "en attente" / "retenue"
-  / "écartée" à la place), "Problème : {…} · Effet : {…}"
+  / "écartée" à la place), étiquette "modifié" si la régie a édité cette
+  proposition, "Problème : {…} · Effet : {…}"
   "Valider → énoncé" / "Écarter" / "Remettre en attente"
+
+  Édition régie (ajouté le 12 oct.) — la description/l'effet écrits par
+  l'îlot ne sont JAMAIS modifiés par ce chemin ; l'édition régie va dans des
+  champs séparés ("la version finale") et une étiquette dit qu'elle existe :
+  "Modifier" / "Fermer l'édition"  [bouton qui ouvre/ferme le panneau]
+  "Description (version finale)" / "Effet (version finale)"  [étiquettes
+  des deux champs du panneau, pré-remplis par l'édition existante ou, à
+  défaut, par le texte de l'îlot]
+  "Enregistrer la modification" / "Annuler"
+  "Revenir à la version initiale"  [bouton affiché seulement si modifiée —
+  repasse au texte de l'îlot sans effacer l'édition, qui reste récupérable]
+  "Version finale (régie), envoyée au vote"  [titre de l'encart affiché
+  sous le texte d'origine quand la proposition est modifiée — toujours les
+  deux versions visibles ensemble, jamais l'une à la place de l'autre]
 
 --- Note permanente en bas de la régie ---
 "⚠️ Les règles d'API sont ouvertes pour le développement. À fermer avant

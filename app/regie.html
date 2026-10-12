@@ -100,10 +100,23 @@
     .tag.draft     { color: var(--ink-muted); }
     .tag.validated { color: #fff; background: var(--ok);    border-color: var(--ok); }
     .tag.rejected  { color: #fff; background: var(--ink-muted); border-color: var(--ink-muted); }
+    .tag.modified  { color: #fff; background: var(--accent); border-color: var(--accent); }
     .prop-desc { font-size: 16px; margin: 6px 0; }
     .prop-meta { font-size: 13px; color: var(--ink-muted); }
-    .prop-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .prop-final {
+      font-size: 13px; color: var(--ink-muted);
+      border-left: 3px solid var(--accent); padding-left: 8px; margin: 8px 0;
+    }
+    .prop-final strong { color: var(--ink); }
+    .prop-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .prop-actions button { font-size: 14px; padding: 6px 12px; }
+    .prop-edit { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+    .prop-edit label { display: block; font-size: 12px; color: var(--ink-muted); margin: 8px 0 3px; }
+    .prop-edit textarea {
+      width: 100%; font: inherit; font-size: 14px; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: var(--radius); resize: vertical;
+    }
+    .prop-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
 
     .topbar {
       display: flex; align-items: baseline; justify-content: space-between;
@@ -951,12 +964,33 @@
     }
 
     /* --- Propositions : validation et injection ---------------------------
-     * Valider = créer un `statement` à partir de la description, l'activer,
-     * puis noter la référence sur la proposition. La frontière d'anonymat est
-     * là : `propositions` porte l'îlot, `statements` ne le porte pas, et rien
-     * dans `statements` ne pointe vers `propositions` (spec §1.4). */
+     * Valider = créer un `statement` à partir de la version EFFECTIVE de la
+     * description (la finale si `modified`, sinon l'initiale — voir
+     * `effectiveText`), l'activer, puis noter la référence sur la
+     * proposition. La frontière d'anonymat est là : `propositions` porte
+     * l'îlot, `statements` ne le porte pas, et rien dans `statements` ne
+     * pointe vers `propositions` (spec §1.4).
+     *
+     * Édition régie (ajouté le 12 oct.) : la régie peut réécrire
+     * description/effet sans toucher à ce que l'îlot a écrit — l'édition va
+     * dans `description_final`/`effect_final`, jamais dans `description`/
+     * `effect`, et bascule `modified` à `true`. Si la proposition est déjà
+     * validée (un `statement` existe déjà), l'édition met aussi à jour le
+     * texte de l'énoncé en place — sinon un énoncé déjà en vote resterait
+     * sur l'ancien texte jusqu'au prochain clic sur "Valider", qui n'est
+     * même plus affiché une fois validé. */
     var propListEl = document.getElementById('propList');
     var propStats = document.getElementById('propStats');
+
+    // Lignes dont le panneau d'édition est ouvert — survit aux rechargements
+    // de la liste (déclenchés par le temps réel dès qu'une proposition
+    // bouge, y compris celle d'un autre îlot) pour ne pas refermer le
+    // panneau sous les doigts de la régie.
+    var propEditOpen = {};
+
+    function effectiveText(p) {
+      return p.modified ? (p.description_final || '') : (p.description || '');
+    }
 
     function loadProps() {
       return R().collection('propositions')
@@ -966,9 +1000,10 @@
 
           var counts = { draft: 0, validated: 0, rejected: 0 };
           rows.forEach(function (p) { counts[p.status] = (counts[p.status] || 0) + 1; });
+          var modifiedCount = rows.filter(function (p) { return p.modified; }).length;
           propStats.textContent = rows.length + ' proposition(s) — ' +
             counts.draft + ' en attente, ' + counts.validated + ' retenue(s), ' +
-            counts.rejected + ' écartée(s)';
+            counts.rejected + ' écartée(s), ' + modifiedCount + ' modifiée(s) par la régie';
 
           rows.forEach(function (p) {
             var row = document.createElement('div');
@@ -982,6 +1017,12 @@
             var isl = document.createElement('strong');
             isl.textContent = 'Îlot ' + p.island;
             head.appendChild(isl); head.appendChild(tag);
+            if (p.modified) {
+              var mtag = document.createElement('span');
+              mtag.className = 'tag modified';
+              mtag.textContent = 'modifié';
+              head.appendChild(mtag);
+            }
 
             var desc = document.createElement('div');
             desc.className = 'prop-desc';
@@ -991,6 +1032,23 @@
             meta.className = 'prop-meta';
             meta.textContent = 'Problème : ' + (p.problem || '—') +
               '  ·  Effet : ' + (p.effect || '—');
+
+            row.appendChild(head); row.appendChild(desc); row.appendChild(meta);
+
+            if (p.modified) {
+              var finalBlock = document.createElement('div');
+              finalBlock.className = 'prop-final';
+              var finalTitle = document.createElement('strong');
+              finalTitle.textContent = 'Version finale (régie), envoyée au vote';
+              var finalDesc = document.createElement('div');
+              finalDesc.textContent = p.description_final || '(vide)';
+              var finalEffect = document.createElement('div');
+              finalEffect.textContent = 'Effet : ' + (p.effect_final || '—');
+              finalBlock.appendChild(finalTitle);
+              finalBlock.appendChild(finalDesc);
+              finalBlock.appendChild(finalEffect);
+              row.appendChild(finalBlock);
+            }
 
             var actions = document.createElement('div');
             actions.className = 'prop-actions';
@@ -1023,27 +1081,131 @@
               actions.appendChild(ub);
             }
 
-            row.appendChild(head); row.appendChild(desc);
-            row.appendChild(meta); row.appendChild(actions);
+            var eb = document.createElement('button');
+            eb.type = 'button';
+            eb.textContent = propEditOpen[p.id] ? 'Fermer l’édition' : 'Modifier';
+            eb.addEventListener('click', function () {
+              propEditOpen[p.id] = !propEditOpen[p.id];
+              loadProps();
+            });
+            actions.appendChild(eb);
+
+            if (p.modified) {
+              var revertBtn = document.createElement('button');
+              revertBtn.type = 'button';
+              revertBtn.textContent = 'Revenir à la version initiale';
+              revertBtn.addEventListener('click', function () { revertEdit(p, revertBtn); });
+              actions.appendChild(revertBtn);
+            }
+
+            row.appendChild(actions);
+
+            if (propEditOpen[p.id]) {
+              row.appendChild(buildEditBox(p));
+            }
+
             propListEl.appendChild(row);
           });
         })
         .catch(fail);
     }
 
-    function validate(p, button) {
-      if (!p.description) return fail('proposition vide : rien à injecter');
+    function buildEditBox(p) {
+      var box = document.createElement('div');
+      box.className = 'prop-edit';
+
+      var descLabel = document.createElement('label');
+      descLabel.textContent = 'Description (version finale)';
+      var descTa = document.createElement('textarea');
+      descTa.rows = 3;
+      descTa.value = p.description_final || p.description || '';
+
+      var effectLabel = document.createElement('label');
+      effectLabel.textContent = 'Effet (version finale)';
+      var effectTa = document.createElement('textarea');
+      effectTa.rows = 2;
+      effectTa.value = p.effect_final || p.effect || '';
+
+      var editActions = document.createElement('div');
+      editActions.className = 'prop-edit-actions';
+
+      var saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.textContent = 'Enregistrer la modification';
+      saveBtn.addEventListener('click', function () {
+        saveEdit(p, descTa.value, effectTa.value, saveBtn);
+      });
+
+      var cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = 'Annuler';
+      cancelBtn.addEventListener('click', function () {
+        propEditOpen[p.id] = false;
+        loadProps();
+      });
+
+      editActions.appendChild(saveBtn);
+      editActions.appendChild(cancelBtn);
+
+      box.appendChild(descLabel); box.appendChild(descTa);
+      box.appendChild(effectLabel); box.appendChild(effectTa);
+      box.appendChild(editActions);
+      return box;
+    }
+
+    function saveEdit(p, descVal, effectVal, button) {
+      if (!descVal) return fail('description vide : rien à enregistrer');
       ok();
       button.disabled = true;
 
-      // Déjà injectée ? Ne pas créer un doublon si on reclique.
+      var data = { description_final: descVal, effect_final: effectVal, modified: true };
+      var op = R().collection('propositions').update(p.id, data);
+
+      // Déjà validée : l'énoncé en vote doit refléter l'édition tout de
+      // suite, pas seulement au prochain clic sur "Valider" — qui n'existe
+      // même plus une fois le statut passé à `validated`.
       if (p.statement) {
-        return R().collection('propositions').update(p.id, { status: 'validated' })
+        op = op.then(function () {
+          return R().collection('statements').update(p.statement, { text: descVal });
+        });
+      }
+
+      op.then(function () { propEditOpen[p.id] = false; })
+        .then(loadProps)
+        .catch(function (e) { button.disabled = false; fail(e); });
+    }
+
+    function revertEdit(p, button) {
+      ok();
+      button.disabled = true;
+
+      var op = R().collection('propositions').update(p.id, { modified: false });
+      if (p.statement) {
+        op = op.then(function () {
+          return R().collection('statements').update(p.statement, { text: p.description || '' });
+        });
+      }
+      op.then(loadProps).catch(function (e) { button.disabled = false; fail(e); });
+    }
+
+    function validate(p, button) {
+      var text = effectiveText(p);
+      if (!text) return fail('proposition vide : rien à injecter');
+      ok();
+      button.disabled = true;
+
+      // Déjà injectée ? Ne pas créer un doublon si on reclique — mais
+      // resynchroniser le texte, au cas où il aurait été édité entre-temps.
+      if (p.statement) {
+        return R().collection('statements').update(p.statement, { text: text })
+          .then(function () {
+            return R().collection('propositions').update(p.id, { status: 'validated' });
+          })
           .then(loadProps).catch(fail);
       }
 
       R().collection('statements')
-        .create({ text: p.description, active: true })
+        .create({ text: text, active: true })
         .then(function (st) {
           // Le lien est écrit sur la proposition, jamais sur l'énoncé.
           return R().collection('propositions')
