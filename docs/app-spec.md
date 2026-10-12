@@ -68,8 +68,8 @@ quelqu'un abandonne à Q5, les 4 premières lignes existent déjà.
 | Champ | Type | Notes |
 |---|---|---|
 | `participant` | relation → participants | |
-| `question` | text | clé : `q1` … `q7` |
-| `choice` | text | clé de l'option, ex. `q4_c2` |
+| `question` | text | clé de question — voir `shared/questions.js` pour le jeu actuel |
+| `choice` | text | clé de l'option (ex. `p1_1_c2`) pour une question à choix, ou le nombre choisi en texte (ex. `73`) pour une question à curseur |
 
 **Index unique** sur `(participant, question)` — permet un *upsert* si le
 participant revient en arrière et change sa réponse.
@@ -387,7 +387,7 @@ ne change pas, seul l'intitulé lu par le facilitateur change :
 | `stage` | Écran participant | Ouvert normalement |
 |---|---|---|
 | `accueil` | déroulé, partenaires, calendrier | `entry_open` |
-| `mission` (« Questionnaire \| Intro ») | 7 questions à 5 degrés (Likert), une par écran | `entry_open` |
+| `mission` (« Questionnaire \| Intro ») | questions à 5 degrés (Likert) et/ou à curseur 0-100, une par écran — contenu dans `shared/questions.js` | `entry_open` |
 | `consigne` (« Paires ») | « trouve quelqu'un qui… » + appariement par couleur + n° d'îlot | — |
 | `ilots` | numéro d'îlot en très grand | — |
 | `polquiz` (« Pol' quiz ») | mini-quiz à choix unique, une réponse par îlot (§2.6) | `polquiz_open` |
@@ -403,7 +403,7 @@ Déroulé nominal, chaque transition déclenchée **manuellement** par la régie
        mission       (les gens répondent en arrivant)
        consigne      → n° d'îlot affiché dès la fin de la mission
 19h25  ─────────────  régie : entry_open=false
-       ilots         projection_view=entry, la régie fait défiler q1…q7
+       ilots         projection_view=entry, la régie fait défiler les questions
        polquiz       polquiz_open=true (mini-quiz, une réponse par îlot)
 20h00  propositions  propositions_open=true
        ─────────────  régie valide → statements.active=true
@@ -466,8 +466,7 @@ Trois points qui portent tout le poids :
 **Ne pas faire côté client.** Deux personnes qui scannent en même temps liraient
 la même composition et se verraient attribuer le même îlot.
 
-Route personnalisée dans `pb_hooks/`, appelée à la fin de la mission d'entrée
-(ou dès que Q4 et Q6 sont répondues, si on veut donner le numéro plus tôt) :
+Route personnalisée dans `pb_hooks/`, appelée à la fin de la mission d'entrée :
 
 ```
 POST /api/assign-island        auth : participant
@@ -477,22 +476,44 @@ Algorithme glouton, exécuté **dans une transaction**, en relisant les
 compositions à l'intérieur de la transaction :
 
 ```
-q4 = réponse du participant à Q4      (rapport au mot « débat »)
-q6 = réponse du participant à Q6      (connaît quelqu'un de très éloigné)
+A = réponse du participant à DIVERSITY_Q_A
+B = réponse du participant à DIVERSITY_Q_B
 
 pour chaque îlot i dans 1..islands_count :
-    same4 = nb de membres de i ayant la même réponse Q4
-    same6 = nb de membres de i ayant la même réponse Q6
+    sameA = nb de membres de i ayant la même réponse A
+    sameB = nb de membres de i ayant la même réponse B
     excess = taille(i) − min(taille de tous les îlots)
 
-    score(i) = 2*same4 + 2*same6 + 10*excess
+    score(i) = 2*sameA + 2*sameB + 10*excess
 
 affecter à l'îlot de score minimal ; égalité → le moins rempli ; puis au hasard
 ```
 
-Le terme `excess` fortement pondéré maintient l'équilibrage ; les termes `same*`
-maximisent la diversité intra-îlot demandée au §1.4. Les poids sont à ajuster
-lors de la répétition, pas en théorie.
+Le terme `excess` fortement pondéré maintient l'équilibrage ; les termes
+`same*` maximisent la diversité intra-îlot demandée au §1.4. Les poids sont à
+ajuster lors de la répétition, pas en théorie.
+
+`DIVERSITY_Q_A`/`DIVERSITY_Q_B` sont deux constantes déclarées **à l'intérieur**
+du handler `routerAdd` (pas en tête de fichier — un `var` de portée module
+n'est pas fiablement visible depuis l'intérieur d'un callback de route sur
+PocketBase, à cause de son architecture à VMs pré-chargées ; déjà rencontré
+dans `assign-matching.pb.js`). Elles pointent vers deux questions à choix (pas
+à curseur) de `shared/questions.js` — l'algorithme ne compare les réponses
+qu'en égalité stricte de clé, donc n'importe quelle question à choix convient,
+et changer le contenu de la mission d'entrée ne demande de toucher que ces
+deux constantes.
+
+> **Historique** : à l'origine `q4`/`q6` (événement 1, rapport au mot
+> « débat » / connaît quelqu'un de très éloigné). Le contenu de la mission
+> d'entrée a été entièrement remplacé le 12 oct. pour le second événement,
+> ces clés ont disparu de `questions.js` — le hook a été regénéralisé à cette
+> occasion (constantes nommées plutôt que clés en dur) et repointé vers
+> `p1_1`/`p1_4` (deux des cinq propositions de la Partie 1). Pendant la
+> fenêtre entre le changement de contenu et cette correction, l'algorithme n'a
+> pas planté : `sameA`/`sameB` valaient simplement 0 pour tout le monde, donc
+> un équilibrage par taille uniquement, sans dimension de diversité — à
+> surveiller si ce fichier change encore sans que ces deux constantes
+> suivent.
 
 **Réassignation manuelle** (régie) : simple update du champ `island`.
 Un écran listant les 10 îlots et leur remplissage suffit.

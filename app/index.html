@@ -40,7 +40,35 @@
     .progress { height: 3px; background: var(--line); border-radius: 2px; margin-bottom: 20px; }
     .progress span { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .25s ease; }
     .step { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
+    .q-intro { font-size: 15px; margin-bottom: 4px; }
     #qtext { font-size: clamp(22px, 5vw, 30px); line-height: 1.25; margin-bottom: 24px; }
+
+    /* ---- question à curseur (0-100, thermomètre) ---- */
+    #scaleWrap input[type="range"] {
+      width: 100%;
+      margin: 12px 0 10px;
+      accent-color: var(--accent);
+    }
+    .scale-value {
+      font-family: "Londrina Solid", sans-serif;
+      font-weight: 900;
+      font-size: 44px;
+      text-align: center;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-bottom: 20px;
+    }
+    .scale-labels span:nth-child(2) { text-align: center; flex: 1.4; }
+    .scale-labels span:last-child { text-align: right; }
+    #scaleNext { width: 100%; padding: 14px; font-size: 16px; }
 
     .options { display: grid; gap: 10px; }
     /* Cibles tactiles généreuses : on répond debout, en tenant son manteau. */
@@ -381,8 +409,19 @@
       <div id="mission" hidden>
         <div class="progress"><span id="progressBar"></span></div>
         <p class="step muted" id="step"></p>
+        <p class="q-intro muted" id="qintro" hidden></p>
         <h1 id="qtext"></h1>
         <div class="options" id="options"></div>
+        <div id="scaleWrap" hidden>
+          <input type="range" id="scaleInput" min="0" max="100" step="1" value="50" />
+          <div class="scale-value" id="scaleValue">50</div>
+          <div class="scale-labels">
+            <span id="scaleLabelMin"></span>
+            <span id="scaleLabelMid"></span>
+            <span id="scaleLabelMax"></span>
+          </div>
+          <button id="scaleNext" type="button">Suivant</button>
+        </div>
         <div class="nav">
           <button id="prev" type="button">Retour</button>
           <span class="saved muted" id="saved"></span>
@@ -642,7 +681,15 @@
     var missionEl = document.getElementById('mission');
     var doneEl = document.getElementById('missionDone');
     var qtext = document.getElementById('qtext');
+    var qintroEl = document.getElementById('qintro');
     var optionsEl = document.getElementById('options');
+    var scaleWrapEl = document.getElementById('scaleWrap');
+    var scaleInputEl = document.getElementById('scaleInput');
+    var scaleValueEl = document.getElementById('scaleValue');
+    var scaleLabelMinEl = document.getElementById('scaleLabelMin');
+    var scaleLabelMidEl = document.getElementById('scaleLabelMid');
+    var scaleLabelMaxEl = document.getElementById('scaleLabelMax');
+    var scaleNextBtn = document.getElementById('scaleNext');
     var stepEl = document.getElementById('step');
     var barEl = document.getElementById('progressBar');
     var prevBtn = document.getElementById('prev');
@@ -692,26 +739,49 @@
       var q = QUESTIONS[index];
       stepEl.textContent = 'Question ' + (index + 1) + ' sur ' + QUESTIONS.length;
       barEl.style.width = Math.round((index / QUESTIONS.length) * 100) + '%';
+      qintroEl.hidden = !q.sectionIntro;
+      qintroEl.textContent = q.sectionIntro || '';
       qtext.textContent = q.text;
       prevBtn.hidden = index === 0;
 
-      optionsEl.textContent = '';
-      optionsEl.classList.add('likert');
-      q.options.forEach(function (opt, i) {
-        var b = likertButton(opt, i + 1, answers[q.key] === opt.key, function () {
-          choose(q, opt);
+      if (q.type === 'scale') {
+        optionsEl.hidden = true;
+        optionsEl.textContent = '';
+        scaleWrapEl.hidden = false;
+        scaleLabelMinEl.textContent = q.scaleLabels.min;
+        scaleLabelMidEl.textContent = q.scaleLabels.mid;
+        scaleLabelMaxEl.textContent = q.scaleLabels.max;
+        var current = answers[q.key] !== undefined ? answers[q.key] : '50';
+        scaleInputEl.value = current;
+        scaleValueEl.textContent = current;
+      } else {
+        scaleWrapEl.hidden = true;
+        optionsEl.hidden = false;
+        optionsEl.textContent = '';
+        optionsEl.classList.add('likert');
+        q.options.forEach(function (opt, i) {
+          var b = likertButton(opt, i + 1, answers[q.key] === opt.key, function () {
+            advance(q, opt.key);
+          });
+          optionsEl.appendChild(b);
         });
-        optionsEl.appendChild(b);
-      });
+      }
     }
 
-    function choose(q, opt) {
-      answers[q.key] = opt.key;
+    scaleInputEl.addEventListener('input', function () {
+      scaleValueEl.textContent = scaleInputEl.value;
+    });
+    scaleNextBtn.addEventListener('click', function () {
+      advance(QUESTIONS[index], scaleInputEl.value);
+    });
+
+    function advance(q, value) {
+      answers[q.key] = value;
 
       // On avance tout de suite. L'écriture réseau ne doit jamais faire
       // attendre quelqu'un debout dans un hall : en cas d'échec elle part
       // dans la file et sera rejouée (spec §7).
-      App.saveAnswer(q.key, opt.key).then(function () {
+      App.saveAnswer(q.key, value).then(function () {
         savedEl.textContent = App.pendingWrites
           ? App.pendingWrites + ' réponse(s) en attente d’envoi'
           : '';

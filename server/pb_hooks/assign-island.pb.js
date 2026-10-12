@@ -28,6 +28,21 @@ routerAdd('POST', '/api/assign-island', function (e) {
     return e.json(401, { message: 'authentification requise' });
   }
 
+  // Les deux clés ci-dessous nourrissent la dimension « diversité » du score
+  // (voir plus bas) : deux personnes ayant répondu pareil à L'UNE OU L'AUTRE
+  // de ces deux questions sont pénalisées pour atterrir dans le même îlot.
+  // Pointent vers `shared/questions.js` — si ce fichier change de contenu
+  // (ce qui s'est déjà produit une fois, le 12 oct., en passant de q4/q6 à
+  // ces deux-là), modifier UNIQUEMENT ces deux constantes, rien d'autre
+  // ci-dessous. N'importe quelle question à choix (pas à curseur) convient :
+  // l'algorithme ne compare les réponses qu'en égalité stricte de clé.
+  // ⚠️ Déclarées ICI, à l'intérieur du handler, et pas en tête de fichier :
+  // un `var` de portée module n'est pas fiablement visible depuis l'intérieur
+  // d'un callback `routerAdd` (architecture à VMs pré-chargées de PocketBase
+  // — voir le hook assign-matching pour le même piège, déjà rencontré).
+  var DIVERSITY_Q_A = 'p1_1';
+  var DIVERSITY_Q_B = 'p1_4';
+
   var result = null;
 
   $app.runInTransaction(function (txApp) {
@@ -54,18 +69,20 @@ routerAdd('POST', '/api/assign-island', function (e) {
       throw new BadRequestError('islands_count vaut ' + islandsCount + ' : aucun îlot ouvert.');
     }
 
-    // --- réponses Q4 et Q6, qui portent la diversité recherchée -------------
+    // --- réponses aux deux questions qui portent la diversité recherchée ----
     // limit=500 et pas 0 : trouvé le 10 sept dans assign-matching.pb.js,
     // txApp.findRecordsByFilter(..., 0, 0) À L'INTÉRIEUR d'une transaction
     // peut renvoyer le même enregistrement plusieurs fois. Sans effet ici
-    // (mêmes q4/q6 réécrits sur la même clé), mais `members` juste en
-    // dessous fait des size[isl]++ — un doublon y fausserait le compte pour
-    // de vrai. Même limite explicite aux deux, par cohérence.
+    // (même clé réécrite sur elle-même), mais `members` juste en dessous
+    // fait des size[isl]++ — un doublon y fausserait le compte pour de vrai.
+    // Même limite explicite aux deux, par cohérence.
     var answers = txApp.findRecordsByFilter(
-      'entry_answers', 'question = "q4" || question = "q6"', '', 500, 0
+      'entry_answers',
+      'question = "' + DIVERSITY_Q_A + '" || question = "' + DIVERSITY_Q_B + '"',
+      '', 500, 0
     );
 
-    var byParticipant = {};       // id -> { q4, q6 }
+    var byParticipant = {};       // id -> { [DIVERSITY_Q_A]: choix, [DIVERSITY_Q_B]: choix }
     for (var i = 0; i < answers.length; i++) {
       var a = answers[i];
       var pid = a.getString('participant');
@@ -84,8 +101,8 @@ routerAdd('POST', '/api/assign-island', function (e) {
       members.push(r);
     });
 
-    var size = {}, same4 = {}, same6 = {};
-    for (var n = 1; n <= islandsCount; n++) { size[n] = 0; same4[n] = 0; same6[n] = 0; }
+    var size = {}, sameA = {}, sameB = {};
+    for (var n = 1; n <= islandsCount; n++) { size[n] = 0; sameA[n] = 0; sameB[n] = 0; }
 
     for (var m = 0; m < members.length; m++) {
       var mem = members[m];
@@ -93,8 +110,8 @@ routerAdd('POST', '/api/assign-island', function (e) {
       if (isl < 1 || isl > islandsCount) continue;   // îlot fermé depuis
       size[isl]++;
       var ans = byParticipant[mem.id] || {};
-      if (mine.q4 && ans.q4 === mine.q4) same4[isl]++;
-      if (mine.q6 && ans.q6 === mine.q6) same6[isl]++;
+      if (mine[DIVERSITY_Q_A] && ans[DIVERSITY_Q_A] === mine[DIVERSITY_Q_A]) sameA[isl]++;
+      if (mine[DIVERSITY_Q_B] && ans[DIVERSITY_Q_B] === mine[DIVERSITY_Q_B]) sameB[isl]++;
     }
 
     var minSize = Infinity;
@@ -106,7 +123,7 @@ routerAdd('POST', '/api/assign-island', function (e) {
     // théorie (spec §5).
     var best = [], bestScore = Infinity;
     for (var k = 1; k <= islandsCount; k++) {
-      var score = 2 * same4[k] + 2 * same6[k] + 10 * (size[k] - minSize);
+      var score = 2 * sameA[k] + 2 * sameB[k] + 10 * (size[k] - minSize);
       if (score < bestScore) { bestScore = score; best = [k]; }
       else if (score === bestScore) { best.push(k); }
     }

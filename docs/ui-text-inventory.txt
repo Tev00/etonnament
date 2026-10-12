@@ -1,6 +1,8 @@
 ÉTONNAMMENT D'ACCORD — INVENTAIRE DES TEXTES DE L'INTERFACE
-Généré le 10 septembre 2026, mis à jour le 9 octobre 2026 (échelles de
-Likert à 5 degrés, stage « Pol' quiz », renommage des boutons de régie).
+Généré le 10 septembre 2026, mis à jour le 12 octobre 2026 (contenu de la
+mission d'entrée entièrement remplacé pour le second événement — voir plus
+bas ; échelles de Likert à 5 degrés, stage « Pol' quiz », renommage des
+boutons de régie restent de la mise à jour du 9 octobre).
 Sert à relire et ajuster la copie sans avoir à fouiller le code — donnez-moi
 la liste des changements (texte actuel → nouveau texte) et je les reporte
 dans les fichiers.
@@ -47,51 +49,47 @@ Si le compte ne peut pas être créé (réseau) :
 "Connexion impossible"
 "Rechargez la page dans un instant."
 
---- Les 7 questions de la mission d'entrée ---
-⚠️ Depuis le 9 oct., les 7 questions sont à 5 degrés (Likert), affichées en
-ligne plutôt qu'empilées. Changer le NOMBRE d'options casse cette mise en
-forme (prévue pour 5 colonnes) — changer le TEXTE des options reste libre.
+--- Les questions de la mission d'entrée (remplacées le 12 oct. pour le
+    second événement — l'ancien contenu, Q1-Q7, a été abandonné) ---
+Deux types d'écran : à choix (5 degrés, Likert, en ligne) et à curseur
+(0-100, un seul curseur par écran avec une valeur en gros au-dessus et un
+bouton "Suivant" — pas d'avancée automatique comme pour les choix).
 
-Q1 "Dans les douze derniers mois, vous est-il arrivé d'éviter un sujet
-   politique avec un proche pour ne pas créer de tension ?"
-   → Jamais / Rarement / Parfois / Souvent / Très souvent
+PARTIE 1 — intro affichée au-dessus de chacune des 5 questions suivantes :
+"Voici des propositions qui circulent dans le débat public :"
+Échelle (identique sur les 5) :
+→ Pas du tout d'accord / Plutôt pas d'accord / Ni l'un ni l'autre / Plutôt
+d'accord / Tout à fait d'accord
 
-Q2 "Vous est-il déjà arrivé de changer d'avis sur un sujet politique
-   important à la suite d'une conversation ?"
-   → Jamais / Rarement / Parfois / Souvent / Très souvent
+P1.1 "Instaurer le référendum d'initiative citoyenne."
+P1.2 "Introduire une part de proportionnelle aux élections législatives."
+P1.3 "Limiter à deux le nombre de mandats successifs identiques."
+P1.4 "Réduire le nombre de parlementaires."
+P1.5 "Rendre le vote obligatoire."
 
-Q3 "Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par
-   crainte de la réaction ?"
-   → Jamais / Rarement / Parfois / Souvent / Très souvent
-   ⚠️ Reprise mot pour mot par F2 côté questionnaire de clôture (mesure
-   avant/après) — si vous changez le sens de cette question, changez F2
-   pareil ou la comparaison ne veut plus rien dire.
+PARTIE 2 :
+P2.a (curseur 0-100) "Sur une échelle de 0 à 100, quel sentiment
+     éprouvez-vous envers les personnes qui font partie d'un camp
+     politique auquel vous vous opposez ?"
+     Repères sous le curseur : "0 — très froid, défavorable" /
+     "50 — ni chaleureux ni froid" / "100 — très chaleureux, favorable"
 
-Q4 "Quand vous entendez le mot « débat », qu'est-ce qui vous vient en
-   premier ?"
-   → Un affrontement / Un échange utile / Un spectacle / Une perte de
-   temps / Autre
-   ⚠️ Alimente l'algorithme de répartition en îlots. Le texte des options
-   est libre ; ne touchez pas aux clés (q4_c1...) ni à l'ordre. Catégoriel
-   (pas d'ordre réel) — affiché en ligne comme les autres pour l'uniformité
-   visuelle, mais ce n'est pas une vraie échelle.
+P2.b (curseur 0-100) intro "Le thermomètre inversé." puis "Selon vous, quel
+     sentiment les personnes de ce camp éprouvent-elles envers les
+     personnes comme vous ?"
+     Mêmes repères que P2.a
 
-Q5 "Avez-vous le sentiment que votre voix compte dans les décisions
-   politiques ?"
-   → Tout à fait / Plutôt oui / Je ne sais pas / Plutôt non / Pas du tout
+P2.c (choix, même échelle qu'en partie 1) intro "L'espoir de coopération."
+     puis "Je pense qu'il est possible de travailler avec les gens du camp
+     adverse pour trouver les meilleures solutions à nos plus grands
+     problèmes."
 
-Q6 "Connaissez-vous personnellement quelqu'un dont les convictions
-   politiques sont très éloignées des vôtres, et avec qui vous discutez
-   régulièrement ?"
-   → Personne / Oui, rarement / Oui, parfois / Oui, souvent / Oui, très
-   souvent
-   ⚠️ Alimente aussi l'algorithme des îlots, même remarque que Q4.
-
-Q7 "Qu'est-ce qui vous a fait venir ce soir ?"
-   → La méthode / Le sujet / J'accompagne quelqu'un / Je veux contribuer
-   au projet / La curiosité
-   ⚠️ Catégoriel, même remarque que Q4 (pas d'algorithme ici, juste la mise
-   en forme).
+⚠️ Ni ce jeu de questions ni aucune autre n'alimente plus l'algorithme de
+répartition en îlots (qui cherchait d'anciennes clés, q4/q6, disparues avec
+le reste du contenu de l'événement 1) : en attendant une décision, les
+îlots s'équilibrent uniquement par taille, sans dimension de diversité. La
+consigne de rencontre ci-dessous a été repointée par défaut vers P1.1 et
+P2.c — à confirmer, ce sont des choix provisoires.
 
 --- Rencontre (stage = consigne) — mode "question", quand l'appariement
     couleur n'est PAS activé par la régie ---

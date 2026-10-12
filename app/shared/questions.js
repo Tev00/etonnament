@@ -1,113 +1,124 @@
 /* Étonnamment d'accord — annexe A : mission d'entrée (« Questionnaire | Intro »).
  *
  * Les libellés vivent ici et NON en base : la base ne stocke que des clés
- * (`q4_c2`), ce qui permet de corriger une faute de frappe le soir même sans
- * toucher aux réponses déjà enregistrées (spec §1.2).
+ * (`p1_1_c2`), ce qui permet de corriger une faute de frappe le soir même
+ * sans toucher aux réponses déjà enregistrées (spec §1.2).
  *
  * Ne jamais réutiliser ni renuméroter une clé après le début de l'événement :
  * les réponses déjà en base pointeraient sur un autre libellé.
  *
- * Présentation en échelle de Likert à 5 degrés (ajouté le 9 oct.) : les 7
- * questions ont désormais toutes exactement 5 options, affichées en ligne
- * plutôt qu'empilées (app/index.html, classe `.options.likert`). Q4 et Q7
- * restent des choix catégoriels (pas d'ordre naturel) — la mise en forme
- * Likert ne s'applique qu'à l'affichage, pas au sens des réponses. Q4 et Q6
- * alimentent l'algorithme d'affectation des îlots (spec §5) : l'algorithme ne
- * compare les clés qu'en égalité stricte, donc passer de 2/4 à 5 options ne
- * change rien à sa logique (server/pb_hooks/assign-island.pb.js).
+ * Contenu entièrement remplacé le 12 oct. pour le second événement (contenu
+ * de l'événement 1 — q1..q7 — abandonné, base vidée avant ce changement).
+ * Deux parties, deux types de question :
+ * - `type: 'choice'` — échelle de Likert à 5 degrés, affichée en ligne
+ *   (`.options.likert`, comme pour `FEEDBACK`).
+ * - `type: 'scale'` — curseur continu 0-100 (thermomètre). Pas d'`options` ;
+ *   `scaleLabels` ne sert qu'à l'affichage (positions 0/50/100 sous le
+ *   curseur), la valeur enregistrée est le nombre choisi, en texte.
  *
- * ⚠️ Cette refonte renumérote q1_c1..c4 etc. Les réponses déjà enregistrées
- * en base (répétitions de septembre) pointeront vers d'anciens libellés —
- * sans incidence pour une vraie soirée pas encore tenue, mais à nettoyer
- * avant la prochaine répétition ou le vrai événement.
+ * ⚠️ Plus aucune question ne nourrit l'algorithme d'affectation des îlots
+ * (spec §5, `server/pb_hooks/assign-island.pb.js`, qui cherchait `q4`/`q6`
+ * par clé en dur) : ces clés n'existent plus. L'algorithme ne plante pas —
+ * `same4`/`same6` restent à 0 pour tout le monde — mais il n'équilibre plus
+ * que par taille d'îlot, sans dimension de diversité. Pareil pour la
+ * consigne de rencontre ci-dessous, réparée en pointant vers deux questions
+ * réelles de ce nouveau jeu ; à confirmer/ajuster avec Paul.
  */
+
+// Échelle d'accord partagée par plusieurs questions ci-dessous — définie une
+// seule fois pour que le texte reste identique partout où elle est réutilisée
+// (évite qu'une des copies dérive après une correction de faute de frappe).
+var AGREE_SCALE = [
+  { label: 'Pas du tout d’accord' },
+  { label: 'Plutôt pas d’accord' },
+  { label: 'Ni l’un ni l’autre' },
+  { label: 'Plutôt d’accord' },
+  { label: 'Tout à fait d’accord' }
+];
+
+function agreeOptions(prefix) {
+  return AGREE_SCALE.map(function (o, i) {
+    return { key: prefix + '_c' + (i + 1), label: o.label };
+  });
+}
+
 window.QUESTIONS = [
+  // --- Partie 1 : 5 propositions qui circulent dans le débat public -------
   {
-    key: 'q1',
-    text: 'Dans les douze derniers mois, vous est-il arrivé d’éviter un sujet politique avec un proche pour ne pas créer de tension ?',
-    options: [
-      { key: 'q1_c1', label: 'Jamais' },
-      { key: 'q1_c2', label: 'Rarement' },
-      { key: 'q1_c3', label: 'Parfois' },
-      { key: 'q1_c4', label: 'Souvent' },
-      { key: 'q1_c5', label: 'Très souvent' }
-    ]
+    key: 'p1_1',
+    section: 'Partie 1',
+    sectionIntro: 'Voici des propositions qui circulent dans le débat public :',
+    type: 'choice',
+    text: 'Instaurer le référendum d’initiative citoyenne.',
+    options: agreeOptions('p1_1')
   },
   {
-    key: 'q2',
-    text: 'Vous est-il déjà arrivé de changer d’avis sur un sujet politique important à la suite d’une conversation ?',
-    options: [
-      { key: 'q2_c1', label: 'Jamais' },
-      { key: 'q2_c2', label: 'Rarement' },
-      { key: 'q2_c3', label: 'Parfois' },
-      { key: 'q2_c4', label: 'Souvent' },
-      { key: 'q2_c5', label: 'Très souvent' }
-    ]
+    key: 'p1_2',
+    section: 'Partie 1',
+    sectionIntro: 'Voici des propositions qui circulent dans le débat public :',
+    type: 'choice',
+    text: 'Introduire une part de proportionnelle aux élections législatives.',
+    options: agreeOptions('p1_2')
   },
   {
-    // F2 (annexe B) reprend cette échelle à l'identique — voir la note là-bas.
-    key: 'q3',
-    text: 'Avez-vous déjà renoncé à dire ce que vous pensiez dans un groupe par crainte de la réaction ?',
-    options: [
-      { key: 'q3_c1', label: 'Jamais' },
-      { key: 'q3_c2', label: 'Rarement' },
-      { key: 'q3_c3', label: 'Parfois' },
-      { key: 'q3_c4', label: 'Souvent' },
-      { key: 'q3_c5', label: 'Très souvent' }
-    ]
+    key: 'p1_3',
+    section: 'Partie 1',
+    sectionIntro: 'Voici des propositions qui circulent dans le débat public :',
+    type: 'choice',
+    text: 'Limiter à deux le nombre de mandats successifs identiques.',
+    options: agreeOptions('p1_3')
   },
   {
-    // Q4 et Q6 alimentent l'algorithme d'affectation des îlots (spec §5).
-    // Catégoriel, pas ordinal — voir la note en tête de fichier.
-    key: 'q4',
-    text: 'Quand vous entendez le mot « débat », qu’est-ce qui vous vient en premier ?',
-    options: [
-      { key: 'q4_c1', label: 'Un affrontement' },
-      { key: 'q4_c2', label: 'Un échange utile' },
-      { key: 'q4_c3', label: 'Un spectacle' },
-      { key: 'q4_c4', label: 'Une perte de temps' },
-      { key: 'q4_c5', label: 'Autre' }
-    ]
+    key: 'p1_4',
+    section: 'Partie 1',
+    sectionIntro: 'Voici des propositions qui circulent dans le débat public :',
+    type: 'choice',
+    text: 'Réduire le nombre de parlementaires.',
+    options: agreeOptions('p1_4')
   },
   {
-    key: 'q5',
-    text: 'Avez-vous le sentiment que votre voix compte dans les décisions politiques ?',
-    options: [
-      { key: 'q5_c1', label: 'Tout à fait' },
-      { key: 'q5_c2', label: 'Plutôt oui' },
-      { key: 'q5_c3', label: 'Je ne sais pas' },
-      { key: 'q5_c4', label: 'Plutôt non' },
-      { key: 'q5_c5', label: 'Pas du tout' }
-    ]
+    key: 'p1_5',
+    section: 'Partie 1',
+    sectionIntro: 'Voici des propositions qui circulent dans le débat public :',
+    type: 'choice',
+    text: 'Rendre le vote obligatoire.',
+    options: agreeOptions('p1_5')
+  },
+
+  // --- Partie 2 : thermomètres + espoir de coopération ---------------------
+  {
+    key: 'p2_a',
+    section: 'Partie 2',
+    type: 'scale',
+    text: 'Sur une échelle de 0 à 100, quel sentiment éprouvez-vous envers les personnes qui font partie d’un camp politique auquel vous vous opposez ?',
+    scaleLabels: { min: '0 — très froid, défavorable', mid: '50 — ni chaleureux ni froid', max: '100 — très chaleureux, favorable' }
   },
   {
-    // Q4 et Q6 alimentent l'algorithme d'affectation des îlots (spec §5).
-    key: 'q6',
-    text: 'Connaissez-vous personnellement quelqu’un dont les convictions politiques sont très éloignées des vôtres, et avec qui vous discutez régulièrement ?',
-    options: [
-      { key: 'q6_c1', label: 'Personne' },
-      { key: 'q6_c2', label: 'Oui, rarement' },
-      { key: 'q6_c3', label: 'Oui, parfois' },
-      { key: 'q6_c4', label: 'Oui, souvent' },
-      { key: 'q6_c5', label: 'Oui, très souvent' }
-    ]
+    // Le thermomètre inversé — même échelle, l'autre sens.
+    key: 'p2_b',
+    section: 'Partie 2',
+    sectionIntro: 'Le thermomètre inversé.',
+    type: 'scale',
+    text: 'Selon vous, quel sentiment les personnes de ce camp éprouvent-elles envers les personnes comme vous ?',
+    scaleLabels: { min: '0 — très froid, défavorable', mid: '50 — ni chaleureux ni froid', max: '100 — très chaleureux, favorable' }
   },
   {
-    key: 'q7',
-    text: 'Qu’est-ce qui vous a fait venir ce soir ?',
-    options: [
-      { key: 'q7_c1', label: 'La méthode' },
-      { key: 'q7_c2', label: 'Le sujet' },
-      { key: 'q7_c3', label: 'J’accompagne quelqu’un' },
-      { key: 'q7_c4', label: 'Je veux contribuer au projet' },
-      { key: 'q7_c5', label: 'La curiosité' }
-    ]
+    key: 'p2_c',
+    section: 'Partie 2',
+    sectionIntro: 'L’espoir de coopération.',
+    type: 'choice',
+    text: 'Je pense qu’il est possible de travailler avec les gens du camp adverse pour trouver les meilleures solutions à nos plus grands problèmes.',
+    options: agreeOptions('p2_c')
   }
 ];
 
-/* Consigne de rencontre (spec §6.2) : on tire Q2 ou Q6 et on affiche la
- * réponse donnée. Calculé côté client, rien n'est stocké. */
-window.CONSIGNE_QUESTIONS = ['q2', 'q6'];
+/* Consigne de rencontre (spec §6.2) : on tire une des deux clés ci-dessous et
+ * on affiche la réponse donnée. Calculé côté client, rien n'est stocké.
+ * ⚠️ Repointé le 12 oct. vers deux questions à choix de ce nouveau jeu (les
+ * deux thermomètres, p2_a/p2_b, sont numériques — mauvais candidats pour un
+ * « trouvez quelqu'un qui a répondu comme vous », qui a besoin d'une vraie
+ * égalité de clé). Choix par défaut, à confirmer avec Paul. */
+window.CONSIGNE_QUESTIONS = ['p1_1', 'p2_c'];
 
 /* ---------------------------------------------------------------------------
  * Annexe B : questionnaire de clôture (« Questionnaire | Fin »).
