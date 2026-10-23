@@ -402,6 +402,34 @@
       .org-item.small { width: 40%; }
     }
 
+    /* ============ Organisations partenaires (big frame, logos inside) ============ */
+    .section-partners { padding: 100px 0 112px; border-top: 1px solid var(--line); }
+    .partners-frame {
+      position: relative;
+      width: calc(100% - 48px);
+      max-width: 900px;
+      margin: 40px auto 0;
+      aspect-ratio: 1300 / 983;
+    }
+    .partners-frame > img {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 2;
+      filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.20));
+    }
+    /* the opening of the frame (measured on cadre.png), white like a mat */
+    .partners-logos {
+      position: absolute; z-index: 1;
+      left: 11.5%; right: 11.5%; top: 16.5%; bottom: 16.5%;
+      background: #fff;
+      display: flex; flex-wrap: wrap; justify-content: center; align-content: center;
+      padding: 1%;
+    }
+    .partners-logos li { list-style: none; flex: 0 0 25%; height: 50%; padding: 1.5%; box-sizing: border-box; }
+    .partners-logos img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    @media (max-width: 600px) {
+      .partners-logos li { flex-basis: 33.333%; height: 33.333%; }
+    }
+
     /* ============ Programmation (scrolling timeline) ============ */
     .section-prog { padding: 100px 0 48px; border-top: 1px solid var(--line); }
     .tl-hint { text-align: center; color: var(--ink-muted); font-size: 13px; letter-spacing: 0.04em; margin: 10px 0 0; }
@@ -508,7 +536,7 @@
     }
 
     /* keep anchored sections from hiding behind the fixed header */
-    .section-placeholder, .format, .section-prog, .section-org, .contact { scroll-margin-top: 76px; }
+    .section-placeholder, .format, .section-prog, .section-org, .section-partners, .contact { scroll-margin-top: 76px; }
 
     /* ============ Contact ============ */
     .contact { border-top: 1px solid var(--line); }
@@ -922,6 +950,26 @@
             <a class="org-link" href="https://www.linkedin.com/in/mathieu-groffe-456241153/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ ORGANISATIONS PARTENAIRES ============ -->
+    <section class="section-partners" id="partenaires">
+      <div class="org-head">
+        <h2>Organisations partenaires</h2>
+      </div>
+
+      <div class="partners-frame">
+        <ul class="partners-logos">
+          <li><img src="assets/partners/logo1.png" alt="La Coalition pour un Renouveau Démocratique" loading="lazy" /></li>
+          <li><img src="assets/partners/logo2.png" alt="Logo partenaire" loading="lazy" /></li>
+          <li><img src="assets/partners/logo3.png" alt="Élysée Conseils" loading="lazy" /></li>
+          <li><img src="assets/partners/logo4.png" alt="L'Académie Citoyenne" loading="lazy" /></li>
+          <li><img src="assets/partners/logo5.png" alt="Le Cap" loading="lazy" /></li>
+          <li><img src="assets/partners/logo6.png" alt="La Présidentielle Inversée" loading="lazy" /></li>
+          <li><img src="assets/partners/logo8.png" alt="Institut des Futurs souhaitables" loading="lazy" /></li>
+        </ul>
+        <img src="assets/partners/cadre.png" alt="" />
       </div>
     </section>
 
