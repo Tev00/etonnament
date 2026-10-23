@@ -439,13 +439,13 @@
       color: var(--accent); pointer-events: none;
     }
     .tl-event:nth-of-type(even) .tl-label { bottom: calc(100% + 24px); }
-    /* past events: green dot, label and date header, plus a check beside the label */
-    .tl-event.is-past .tl-dot { background: var(--done); animation: none; box-shadow: none; }
-    .tl-event.is-past .tl-label { color: var(--done); display: flex; align-items: center; gap: 4px; }
+    /* past events: the dot becomes a green check; label, date header and button go green */
+    .tl-event.is-past .tl-dot { background: none; animation: none; box-shadow: none; }
+    .tl-event.is-past .tl-label { color: var(--done); }
     .tl-event.is-past .tl-date { background: var(--done); }
     .tl-event.is-past:hover .tl-hit, .tl-event.is-past.is-open .tl-hit { outline-color: var(--done); }
     .tl-event.is-past .tl-more { background: var(--done); }
-    .tl-check { width: 15px; height: 12px; flex: none; }
+    .tl-check { position: absolute; left: 50%; top: 50%; width: 20px; height: 16px; transform: translate(-50%, -50%); color: var(--done); }
     @keyframes tlpulse {
       0%   { box-shadow: 0 0 0 0 rgba(238,83,64,.45); }
       70%  { box-shadow: 0 0 0 11px rgba(238,83,64,0); }
@@ -1215,7 +1215,7 @@
           const end = new Date(ev.getAttribute("data-date") + "T23:59:59");
           if (!isNaN(end) && end < new Date()) {
             ev.classList.add("is-past");
-            label.insertAdjacentHTML("beforeend",
+            dot.insertAdjacentHTML("beforeend",
               '<svg class="tl-check" viewBox="0 0 38 30" aria-hidden="true"><path d="M3 17 L13 27 L35 4" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>');
           }
         }
