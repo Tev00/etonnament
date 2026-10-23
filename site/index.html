@@ -447,31 +447,47 @@
       content: ""; position: absolute; top: -7px; left: 22px;
       border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 7px solid #fff;
     }
-    .tl-event:hover .tl-card, .tl-event.is-open .tl-card { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    /* bridge the gap between the dot and the card so hover isn't lost on the way in */
+    .tl-card::after { content: ""; position: absolute; left: 0; right: 0; top: -16px; height: 16px; }
+    .tl-event:hover .tl-card, .tl-event.is-open .tl-card, .tl-event:focus-within .tl-card { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .tl-date {
       background: var(--accent); color: #fff; font-family: "Londrina Solid", sans-serif; font-weight: 900;
       text-transform: uppercase; font-size: 16px; letter-spacing: .03em; padding: 7px 12px;
     }
-    .tl-row img { width: 100%; height: 128px; object-fit: cover; display: block; }
+    .tl-carousel { position: relative; background: var(--line); }
+    .tl-track {
+      display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tl-track::-webkit-scrollbar { display: none; }
+    .tl-track img { flex: 0 0 100%; width: 100%; height: 200px; object-fit: cover; object-position: center 30%; display: block; scroll-snap-align: start; }
+    .tl-nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+      background: rgba(255,255,255,.9); color: var(--ink); font-size: 18px; line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    }
+    .tl-nav:hover, .tl-nav:focus-visible { background: #fff; color: var(--accent); }
+    .tl-prev { left: 8px; } .tl-next { right: 8px; }
+    .tl-pips { position: absolute; left: 0; right: 0; bottom: 7px; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
+    .tl-pip { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.6); box-shadow: 0 0 2px rgba(0,0,0,.4); }
+    .tl-pip.on { background: #fff; }
     .tl-text { padding: 12px 14px 14px; }
     .tl-text p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
     .tl-text p:last-of-type { margin-bottom: 0; }
     .tl-text strong { font-weight: 700; }
-    .tl-link {
-      display: inline-block;
-      margin-top: 2px;
-      font-family: "Inter", sans-serif;
-      font-weight: 600;
-      font-size: 13.5px;
-      color: var(--accent);
-      text-decoration: none;
+    .tl-more {
+      display: block; margin: 0 14px 14px; padding: 9px 14px; text-align: center;
+      background: var(--accent); color: #fff; border-radius: 999px;
+      font-family: "Inter", sans-serif; font-weight: 600; font-size: 13.5px; text-decoration: none;
+      transition: filter .15s ease;
     }
-    .tl-link:hover, .tl-link:focus-visible { text-decoration: underline; }
+    .tl-more:hover, .tl-more:focus-visible { filter: brightness(.92); }
 
     @media (max-width: 820px) {
       .tl-stage { --tlh: 120px; }
       .tl-card { width: 250px; }
-      .tl-row img { height: 108px; }
+      .tl-track img { height: 170px; }
       .tl-scroll { padding-bottom: 420px; }
     }
 
@@ -712,14 +728,20 @@
             <span class="tl-dot" aria-hidden="true"></span>
             <div class="tl-card" role="dialog" aria-label="10 septembre 2026">
               <div class="tl-date">10 septembre 2026</div>
-              <div class="tl-row">
-                <img src="assets/tl_zoom1.jpg" alt="" />
-                <div class="tl-text" data-copy="programmation-10-sept">
-                  <p><strong>Réparer la démocratie, chacun dans son coin&nbsp;?</strong></p>
-                  <p>Réunissons-nous au lancement de Étonnamment d'accord, un programme citoyen pour préparer les présidentielles 2027.</p>
-                  <a class="tl-link" href="https://www.eventbrite.fr/e/reparer-la-democratie-chacun-dans-son-coin-tickets-1998431041040" target="_blank" rel="noopener">Réserver sur Eventbrite ↗</a>
+              <div class="tl-carousel">
+                <div class="tl-track">
+                  <img src="assets/tl_10sept_1.jpg" alt="" />
+                  <img src="assets/tl_10sept_2.jpg" alt="" />
+                  <img src="assets/tl_10sept_3.jpg" alt="" />
+                  <img src="assets/tl_10sept_4.jpg" alt="" />
+                  <!-- more slides: add further <img> tags here -->
                 </div>
               </div>
+              <div class="tl-text" data-copy="programmation-10-sept">
+                <p><strong>Réparer la démocratie, chacun dans son coin&nbsp;?</strong></p>
+                <p>Réunissons-nous au lancement de Étonnamment d'accord, un programme citoyen pour préparer les présidentielles 2027.</p>
+              </div>
+              <a class="tl-more" href="https://www.eventbrite.fr/e/reparer-la-democratie-chacun-dans-son-coin-tickets-1998431041040" target="_blank" rel="noopener">En savoir plus</a>
             </div>
           </div>
 
@@ -728,14 +750,20 @@
             <span class="tl-dot" aria-hidden="true"></span>
             <div class="tl-card" role="dialog" aria-label="17 septembre 2026">
               <div class="tl-date">17 septembre 2026</div>
-              <div class="tl-row">
-                <img src="assets/tl_zoom2.jpg" alt="" />
-                <div class="tl-text" data-copy="programmation-17-sept">
-                  <p><strong>Nuit des Controverses</strong></p>
-                  <p>Étonnamment d'accord aura le plaisir d'organiser un format « Façons de voir » de la Maison de la Conversation à l'occasion de la Nuit des Controverses.</p>
-                  <a class="tl-link" href="https://www.gaite-lyrique.net/agenda/2026/2eme-nuit-des-controverses/" target="_blank" rel="noopener">Voir l'événement ↗</a>
+              <div class="tl-carousel">
+                <div class="tl-track">
+                  <img src="assets/tl_17sept_1.jpg" alt="" />
+                  <img src="assets/tl_17sept_2.jpg" alt="" />
+                  <img src="assets/tl_17sept_3.jpg" alt="" />
+                  <img src="assets/tl_17sept_4.jpg" alt="" />
+                  <!-- more slides: add further <img> tags here -->
                 </div>
               </div>
+              <div class="tl-text" data-copy="programmation-17-sept">
+                <p><strong>Nuit des Controverses</strong></p>
+                <p>Étonnamment d'accord aura le plaisir d'organiser un format « Façons de voir » de la Maison de la Conversation à l'occasion de la Nuit des Controverses.</p>
+              </div>
+              <a class="tl-more" href="https://www.gaite-lyrique.net/agenda/2026/2eme-nuit-des-controverses/" target="_blank" rel="noopener">En savoir plus</a>
             </div>
           </div>
 
@@ -747,8 +775,8 @@
               <div class="tl-text">
                 <p><strong>Nos politiques, tous les mêmes ?</strong></p>
                 <p>Sciences Po Toulouse</p>
-                <a class="tl-link" href="https://www.eventbrite.fr/e/nos-politiques-tous-les-memes-tickets-2002504041494?aff=ebdssbdestsearch" target="_blank" rel="noopener">Réserver sur Eventbrite ↗</a>
               </div>
+              <a class="tl-more" href="https://www.eventbrite.fr/e/nos-politiques-tous-les-memes-tickets-2002504041494?aff=ebdssbdestsearch" target="_blank" rel="noopener">En savoir plus</a>
             </div>
           </div>
 
@@ -843,35 +871,35 @@
         </div>
 
         <!-- 5 smaller frames — people -->
-        <div class="org-item small" style="left:16%; top:47%; z-index:5; --r:4deg; --ct:14.9%; --cr:21.4%; --cb:15.1%; --cl:16.7%">
+        <div data-href="https://www.linkedin.com/in/phsbarrett/" class="org-item small" style="left:16%; top:47%; z-index:5; --r:4deg; --ct:14.9%; --cr:21.4%; --cb:15.1%; --cl:16.7%">
           <img src="assets/org/person1.png" alt="Peter Barrett" />
           <div class="org-caption" data-copy="org-person-1">
             <p class="org-name">Peter Barrett</p>
             <a class="org-link" href="https://www.linkedin.com/in/phsbarrett/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
           </div>
         </div>
-        <div class="org-item small" style="left:2%;  top:56%; z-index:4; --r:-8deg; --ct:15.0%; --cr:21.3%; --cb:17.0%; --cl:19.6%; --crad:50%">
+        <div data-href="https://www.linkedin.com/in/paul-bonifacio/" class="org-item small" style="left:2%;  top:56%; z-index:4; --r:-8deg; --ct:15.0%; --cr:21.3%; --cb:17.0%; --cl:19.6%; --crad:50%">
           <img src="assets/org/person2.png" alt="Paul Bonifacio" />
           <div class="org-caption" data-copy="org-person-2">
             <p class="org-name">Paul Bonifacio</p>
             <a class="org-link" href="https://www.linkedin.com/in/paul-bonifacio/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
           </div>
         </div>
-        <div class="org-item small" style="left:33%; top:41%; z-index:6; --r:-4deg; --ct:20.3%; --cr:24.8%; --cb:22.3%; --cl:25.4%">
+        <div data-href="https://www.linkedin.com/in/xaviercazard/" class="org-item small" style="left:33%; top:41%; z-index:6; --r:-4deg; --ct:20.3%; --cr:24.8%; --cb:22.3%; --cl:25.4%">
           <img src="assets/org/person3.png" alt="Xavier Cazard" />
           <div class="org-caption" data-copy="org-person-3">
             <p class="org-name">Xavier Cazard</p>
             <a class="org-link" href="https://www.linkedin.com/in/xaviercazard/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
           </div>
         </div>
-        <div class="org-item small cap-r" style="left:52%; top:45%; z-index:5; --r:5deg; --ct:24.6%; --cr:27.7%; --cb:23.1%; --cl:27.6%">
+        <div data-href="https://www.linkedin.com/in/gr%C3%A2ce-iba/" class="org-item small cap-r" style="left:52%; top:45%; z-index:5; --r:5deg; --ct:24.6%; --cr:27.7%; --cb:23.1%; --cl:27.6%">
           <img src="assets/org/person5.png" alt="Grâce Iba" />
           <div class="org-caption" data-copy="org-person-4">
             <p class="org-name">Grâce Iba</p>
             <a class="org-link" href="https://www.linkedin.com/in/gr%C3%A2ce-iba/" target="_blank" rel="noopener">Voir le profil LinkedIn ↗</a>
           </div>
         </div>
-        <div class="org-item small cap-r" style="left:77%; top:52%; z-index:2; --r:-3deg; --ct:15.3%; --cr:17.0%; --cb:15.5%; --cl:16.8%">
+        <div data-href="https://www.linkedin.com/in/mathieu-groffe-456241153/" class="org-item small cap-r" style="left:77%; top:52%; z-index:2; --r:-3deg; --ct:15.3%; --cr:17.0%; --cb:15.5%; --cl:16.8%">
           <img src="assets/org/person6.png" alt="Mathieu Groffe" />
           <div class="org-caption" data-copy="org-person-5">
             <p class="org-name">Mathieu Groffe</p>
@@ -1049,6 +1077,23 @@
       });
     })();
 
+    /* Frames with a data-href on the .org-item open that link when the logo/photo
+       is clicked. On touch the first tap only opens the caption (see below);
+       the link inside the caption then handles the second tap. */
+    (function () {
+      let touch = false;
+      try { touch = matchMedia("(hover: none)").matches; } catch (e) {}
+      if (touch) return;
+      document.querySelectorAll(".org-item[data-href]").forEach(function (item) {
+        const img = item.querySelector("img");
+        if (!img) return;
+        img.style.cursor = "pointer";
+        img.addEventListener("click", function () {
+          window.open(item.getAttribute("data-href"), "_blank", "noopener");
+        });
+      });
+    })();
+
     /* Keep every frame's caption fully on-screen, whatever its position or the
        viewport width — nudges it left/right after it opens if it would overflow. */
     (function () {
@@ -1099,6 +1144,38 @@
         if (!e.target.closest(".org-item")) {
           items.forEach(function (o) { o.classList.remove("is-open"); });
         }
+      });
+    })();
+
+    /* Event cards: build prev/next arrows + position pips for any card with 2+ slides.
+       Slides are the <img>s in .tl-track (scroll-snap, so touch users can also swipe). */
+    (function () {
+      document.querySelectorAll(".tl-carousel").forEach(function (car) {
+        const track = car.querySelector(".tl-track");
+        const slides = track.querySelectorAll("img");
+        if (slides.length < 2) return;
+        function nav(cls, label, glyph, dir) {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "tl-nav " + cls; b.setAttribute("aria-label", label); b.textContent = glyph;
+          b.addEventListener("click", function (e) {
+            e.stopPropagation();
+            const i = Math.round(track.scrollLeft / track.clientWidth) + dir;
+            track.scrollTo({ left: Math.max(0, Math.min(slides.length - 1, i)) * track.clientWidth, behavior: "smooth" });
+          });
+          car.appendChild(b);
+        }
+        nav("tl-prev", "Image précédente", "‹", -1);
+        nav("tl-next", "Image suivante", "›", 1);
+        const pips = document.createElement("div");
+        pips.className = "tl-pips";
+        slides.forEach(function () { const d = document.createElement("span"); d.className = "tl-pip"; pips.appendChild(d); });
+        car.appendChild(pips);
+        function sync() {
+          const i = Math.round(track.scrollLeft / track.clientWidth);
+          pips.childNodes.forEach(function (d, k) { d.classList.toggle("on", k === i); });
+        }
+        track.addEventListener("scroll", sync, { passive: true });
+        sync();
       });
     })();
 
